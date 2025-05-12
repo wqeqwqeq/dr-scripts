@@ -1,0 +1,82 @@
+parameters: 
+
+- name: mode
+  displayName: fail over or fail back?
+  type: string
+  default: failover
+  values:
+    - failover
+    - failback
+
+- name: storage
+  displayName: Snowflake is down? 
+  type: boolean
+  default: false
+
+- name: snowflake
+  displayName: Snowflake is down? 
+  type: boolean
+  default: false
+
+
+- name: azure
+  displayName: Azure is down? 
+  type: boolean
+  default: false
+
+- name: domain
+  displayName: Which domain want to fail over/fail back?
+  type: string
+  default: All
+  values:
+    - All
+    - Sales
+    - Finance
+    - Customer
+    - Accounting
+    - Retail 
+    - Nonedw
+    - Associates
+
+- name: env 
+  displayName: Which environment want to fail over/fail back?
+  type: string
+  default: qa
+  values:
+    - qa
+    - prod
+
+trigger: none
+
+pool:
+  vmImage: $(pool)
+
+stages:
+- stage: TestValidate
+  displayName: Test and Publish
+
+  jobs:
+    - job: TestValidate
+      displayName: Test and Publish
+      steps:
+
+        - task: PowerShell@2
+          displayName: Generate Build file
+          enabled: true
+          inputs:
+            targetType: 'inline'            
+            script: |
+              .\build.ps1 `
+                -Mode "${{parameters.mode}}" `
+                -Storage "${{parameters.storage}}" `
+                -Snowflake "${{parameters.snowflake}}" `
+                -Azure "${{parameters.azure}}" `
+                -Domain "${{parameters.domain}}" `
+                -Environment "${{parameters.env}}"
+
+        - task: PublishPipelineArtifact@1
+          displayName: Publish ADF Artifact
+          inputs:
+            targetPath: '$(Pipeline.Workspace)'
+            artifact: 'ADF-drop'
+            publishLocation: 'pipeline'

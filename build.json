@@ -1,0 +1,118 @@
+{
+  "batchAccountScaleDown": [
+    "prodBatchSales",
+    "prodBatchFinance",
+    "prodBatchCustomer",
+    "prodBatchAccounting",
+    "prodBatchRetail",
+    "prodBatchNonedw",
+    "prodBatchAssociates"
+  ],
+  "ADFTriggerStop": [
+    "prodSalesADF",
+    "prodFinanceADF",
+    "prodCustomerADF",
+    "prodAccountingADF",
+    "prodRetailADF",
+    "prodNonedwADF",
+    "prodAssociatesADF"
+  ],
+  "storageGRS": [
+    "prodStorageSales",
+    "prodStorageFinance",
+    "prodStorageCustomer",
+    "prodStorageAccounting",
+    "prodStorageRetail",
+    "prodStorageNonedw",
+    "prodStorageAssociates"
+  ],
+  "ADFLinkedServiceFQDN": [
+    "DRSalesADF",
+    "DRFinanceADF",
+    "DRCustomerADF",
+    "DRAccountingADF",
+    "DRRetailADF",
+    "DRNonedwADF",
+    "DRAssociatesADF"
+  ],
+  "kvSyncTo": [
+    "DRKvSales",
+    "DRKvFinance",
+    "DRKvCustomer",
+    "DRKvAccounting",
+    "DRKvRetail",
+    "DRKvNonedw",
+    "DRKvAssociates"
+  ],
+  "ADFTriggerStart": [
+    "DRSalesADF",
+    "DRFinanceADF",
+    "DRCustomerADF",
+    "DRAccountingADF",
+    "DRRetailADF",
+    "DRNonedwADF",
+    "DRAssociatesADF"
+  ],
+  "kvSyncFrom": [
+    "prodKvSales",
+    "prodKvFinance",
+    "prodKvCustomer",
+    "prodKvAccounting",
+    "prodKvRetail",
+    "prodKvNonedw",
+    "prodKvAssociates"
+  ],
+  "batchAccountScaleUp": [
+    "DRBatchSales",
+    "DRBatchFinance",
+    "DRBatchCustomer",
+    "DRBatchAccounting",
+    "DRBatchRetail",
+    "DRBatchNonedw",
+    "DRBatchAssociates"
+  ],
+  "config": {
+    "domain": "Associates",
+    "rgEast": [
+      "prodSalesRG",
+      "prodFinanceRG",
+      "prodCustomerRG",
+      "prodAccountingRG",
+      "prodRetailRG",
+      "prodNonedwRG",
+      "prodAssociatesRG"
+    ],
+    "storage": true,
+    "mode": "failover",
+    "azure": true,
+    "environment": "prod",
+    "rgWest": [
+      "DRSalesRG",
+      "DRFinanceRG",
+      "DRCustomerRG",
+      "DRAccountingRG",
+      "DRRetailRG",
+      "DRNonedwRG",
+      "DRAssociatesRG"
+    ],
+    "snowflake": true
+  },
+  "batchPoolScaleUp": [
+    "DRpoolBatchSales",
+    "DRpoolBatchFinance",
+    "DRpoolBatchCustomer",
+    "DRpoolBatchAccounting",
+    "DRpoolBatchRetail",
+    "DRpoolBatchNonedw",
+    "DRpoolBatchAssociates"
+  ],
+  "batchPoolScaleDown": [
+    "prodpoolBatchSales",
+    "prodpoolBatchFinance",
+    "prodpoolBatchCustomer",
+    "prodpoolBatchAccounting",
+    "prodpoolBatchRetail",
+    "prodpoolBatchNonedw",
+    "prodpoolBatchAssociates"
+  ]
+}
