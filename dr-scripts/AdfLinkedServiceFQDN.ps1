@@ -50,17 +50,22 @@ function Deploy-SnowflakeLinkedService {
         [bool]$DryRun = $true
     )
     
-    $params = @{
-        DataFactoryName = $adfName
-        ResourceGroupName = $resourceGroupName
-        Name = $linkedService.Name
-        DefinitionFile = $linkedService
+    # Create a temporary file for the linked service definition
+    $tempFile = [System.IO.Path]::GetTempFileName()
+    $linkedService | ConvertTo-Json -Depth 10 | Out-File -FilePath $tempFile -Encoding UTF8
+    
+    try {
+        if ($DryRun) {
+            Set-AzDataFactoryV2LinkedService -ResourceGroupName $resourceGroupName -DataFactoryName $adfName -Name $linkedService.Name -DefinitionFile $tempFile -WhatIf
+        } else {
+            Set-AzDataFactoryV2LinkedService -ResourceGroupName $resourceGroupName -DataFactoryName $adfName -Name $linkedService.Name -DefinitionFile $tempFile
+        }
     }
-
-    if ($DryRun) {
-        Set-AzDataFactoryV2LinkedService @params -WhatIf
-    } else {
-        Set-AzDataFactoryV2LinkedService @params
+    finally {
+        # Clean up the temporary file
+        if (Test-Path $tempFile) {
+            Remove-Item $tempFile -Force
+        }
     }
 }
 
