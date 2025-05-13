@@ -18,8 +18,29 @@ param(
 
     [Parameter(Mandatory=$false)]
     [ValidateSet('qa', 'prod')]
-    [string]$Environment = 'qa'
+    [string]$Environment = 'qa',
+
+    [Parameter(Mandatory=$false)]
+    [string]$customerJson
 )
+
+# If customerJson is provided, use it directly
+if ($customerJson) {
+    # Convert the customer JSON to a PowerShell object
+    $jsonData = $customerJson | ConvertFrom-Json
+    
+    # Convert back to JSON with proper formatting
+    $jsonOutput = $jsonData | ConvertTo-Json -Depth 10
+    
+    # Write the JSON to a file
+    $jsonOutput | Out-File -FilePath build.json -Encoding UTF8
+    
+    # For debugging purposes
+    Write-Host "Using provided JSON:"
+    Write-Host $jsonOutput
+    
+    return
+}
 
 # assume one batch only has one pool
 $batchMap = @{
@@ -262,7 +283,10 @@ if ($Domain -eq "All") {
     if ($Storage) {
         $jsonData["storageGRS"] = @()
         $orderedDomains | ForEach-Object {
-            $jsonData["storageGRS"] += $storageMap[$_][$Environment.ToLower()]
+            $jsonData["storageGRS"] += @{
+                "resourceGroup" = $rgMap[$_][$Environment.ToLower()]
+                "storage" = $storageMap[$_][$Environment.ToLower()]
+            }
         }
     }
     
@@ -271,10 +295,16 @@ if ($Domain -eq "All") {
         $orderedDomains | ForEach-Object {
             if ($Azure) {
                 # When both Snowflake and Azure are true, use 'DR' value
-                $jsonData["ADFLinkedServiceFQDN"] += $ADFMap[$_]["DR"]
+                $jsonData["ADFLinkedServiceFQDN"] += @{
+                    "resourceGroup" = $rgMap[$_]["DR"]
+                    "adf" = $ADFMap[$_]["DR"]
+                }
             } else {
                 # When only Snowflake is true, use environment value
-                $jsonData["ADFLinkedServiceFQDN"] += $ADFMap[$_][$Environment.ToLower()]
+                $jsonData["ADFLinkedServiceFQDN"] += @{
+                    "resourceGroup" = $rgMap[$_][$Environment.ToLower()]
+                    "adf" = $ADFMap[$_][$Environment.ToLower()]
+                }
             }
         }
     }
@@ -282,8 +312,6 @@ if ($Domain -eq "All") {
     if ($Azure) {
         $jsonData["batchAccountScaleUp"] = @()
         $jsonData["batchAccountScaleDown"] = @()
-        $jsonData["batchPoolScaleUp"] = @()
-        $jsonData["batchPoolScaleDown"] = @()
         $jsonData["kvSyncFrom"] = @()
         $jsonData["kvSyncTo"] = @()
         $jsonData["ADFTriggerStop"] = @()
@@ -291,53 +319,86 @@ if ($Domain -eq "All") {
         
         $orderedDomains | ForEach-Object {
             $domain = $_
-            $jsonData["batchAccountScaleUp"] += $batchMap[$domain]["DR"]
-            $jsonData["batchAccountScaleDown"] += $batchMap[$domain][$Environment.ToLower()]
-            $jsonData["batchPoolScaleUp"] += $batchMap[$domain]["pool"]["DR"]
-            $jsonData["batchPoolScaleDown"] += $batchMap[$domain]["pool"][$Environment.ToLower()]
-            $jsonData["kvSyncFrom"] += $kvMap[$domain][$Environment.ToLower()]
-            $jsonData["kvSyncTo"] += $kvMap[$domain]["DR"]
-            $jsonData["ADFTriggerStop"] += $ADFMap[$domain][$Environment.ToLower()]
-            $jsonData["ADFTriggerStart"] += $ADFMap[$domain]["DR"]
+            $jsonData["batchAccountScaleUp"] += @{
+                "resourceGroup" = $rgMap[$domain]["DR"]
+                "batch" = $batchMap[$domain]["DR"]
+                "pool" = $batchMap[$domain]["pool"]["DR"]
+            }
+            $jsonData["batchAccountScaleDown"] += @{
+                "resourceGroup" = $rgMap[$domain][$Environment.ToLower()]
+                "batch" = $batchMap[$domain][$Environment.ToLower()]
+                "pool" = $batchMap[$domain]["pool"][$Environment.ToLower()]
+            }
+            $jsonData["kvSyncFrom"] += @{
+                "resourceGroup" = $rgMap[$domain][$Environment.ToLower()]
+                "kv" = $kvMap[$domain][$Environment.ToLower()]
+            }
+            $jsonData["kvSyncTo"] += @{
+                "resourceGroup" = $rgMap[$domain]["DR"]
+                "kv" = $kvMap[$domain]["DR"]
+            }
+            $jsonData["ADFTriggerStop"] += @{
+                "resourceGroup" = $rgMap[$domain][$Environment.ToLower()]
+                "adf" = $ADFMap[$domain][$Environment.ToLower()]
+            }
+            $jsonData["ADFTriggerStart"] += @{
+                "resourceGroup" = $rgMap[$domain]["DR"]
+                "adf" = $ADFMap[$domain]["DR"]
+            }
         }
-    }
-
-    # Initialize resource group arrays for All domains
-    $rgEastEnvs = @()
-    $rgWestEnvs = @()
-    $orderedDomains | ForEach-Object {
-        $rgEastEnvs += $rgMap[$_][$Environment.ToLower()]
-        $rgWestEnvs += $rgMap[$_]["DR"]
     }
 } else {
     if ($Storage) {
-        $jsonData["storageGRS"] = $storageMap[$Domain][$Environment.ToLower()]
+        $jsonData["storageGRS"] = @{
+            "resourceGroup" = $rgMap[$Domain][$Environment.ToLower()]
+            "storage" = $storageMap[$Domain][$Environment.ToLower()]
+        }
     }
     
     if ($Snowflake) {
         if ($Azure) {
             # When both Snowflake and Azure are true, use 'DR' value
-            $jsonData["ADFLinkedServiceFQDN"] = $ADFMap[$Domain]["DR"]
+            $jsonData["ADFLinkedServiceFQDN"] = @{
+                "resourceGroup" = $rgMap[$Domain]["DR"]
+                "adf" = $ADFMap[$Domain]["DR"]
+            }
         } else {
             # When only Snowflake is true, use environment value
-            $jsonData["ADFLinkedServiceFQDN"] = $ADFMap[$Domain][$Environment.ToLower()]
+            $jsonData["ADFLinkedServiceFQDN"] = @{
+                "resourceGroup" = $rgMap[$Domain][$Environment.ToLower()]
+                "adf" = $ADFMap[$Domain][$Environment.ToLower()]
+            }
         }
     }
     
     if ($Azure) {
-        $jsonData["batchAccountScaleUp"] = $batchMap[$Domain]["DR"]
-        $jsonData["batchAccountScaleDown"] = $batchMap[$Domain][$Environment.ToLower()]
-        $jsonData["batchPoolScaleUp"] = $batchMap[$Domain]["pool"]["DR"]
-        $jsonData["batchPoolScaleDown"] = $batchMap[$Domain]["pool"][$Environment.ToLower()]
-        $jsonData["kvSyncFrom"] = $kvMap[$Domain][$Environment.ToLower()]
-        $jsonData["kvSyncTo"] = $kvMap[$Domain]["DR"]
-        $jsonData["ADFTriggerStop"] = $ADFMap[$Domain][$Environment.ToLower()]
-        $jsonData["ADFTriggerStart"] = $ADFMap[$Domain]["DR"]
+        $jsonData["batchAccountScaleUp"] = @{
+            "resourceGroup" = $rgMap[$Domain]["DR"]
+            "batch" = $batchMap[$Domain]["DR"]
+            "pool" = $batchMap[$Domain]["pool"]["DR"]
+        }
+        $jsonData["batchAccountScaleDown"] = @{
+            "resourceGroup" = $rgMap[$Domain][$Environment.ToLower()]
+            "batch" = $batchMap[$Domain][$Environment.ToLower()]
+            "pool" = $batchMap[$Domain]["pool"][$Environment.ToLower()]
+        }
+        $jsonData["kvSyncFrom"] = @{
+            "resourceGroup" = $rgMap[$Domain][$Environment.ToLower()]
+            "kv" = $kvMap[$Domain][$Environment.ToLower()]
+        }
+        $jsonData["kvSyncTo"] = @{
+            "resourceGroup" = $rgMap[$Domain]["DR"]
+            "kv" = $kvMap[$Domain]["DR"]
+        }
+        $jsonData["ADFTriggerStop"] = @{
+            "resourceGroup" = $rgMap[$Domain][$Environment.ToLower()]
+            "adf" = $ADFMap[$Domain][$Environment.ToLower()]
+        }
+        $jsonData["ADFTriggerStart"] = @{
+            "resourceGroup" = $rgMap[$Domain]["DR"]
+            "adf" = $ADFMap[$Domain]["DR"]
+        }
     }
-
-    # Set single values for specific domain
-    $rgEastEnvs = $rgMap[$Domain][$Environment.ToLower()]
-    $rgWestEnvs = $rgMap[$Domain]["DR"]
 }
 
 # Add config section with all parameters
@@ -348,8 +409,6 @@ $jsonData["config"] = @{
     "azure" = $Azure
     "domain" = $Domain
     "environment" = $Environment
-    "rgEast" = $rgEastEnvs
-    "rgWest" = $rgWestEnvs
 }
 
 # Convert the hashtable to JSON

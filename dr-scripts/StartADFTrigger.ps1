@@ -1,8 +1,8 @@
 # Define config path
-$configPath = "."
+$configPath = "..\"
 
 # Read the JSON file
-$jsonContent = Get-Content -Path "build.json" | ConvertFrom-Json
+$jsonContent = Get-Content -Path "$configPath\build.json" | ConvertFrom-Json
 
 # Check if ADFTriggerStart exists
 if ($jsonContent.ADFTriggerStart) {

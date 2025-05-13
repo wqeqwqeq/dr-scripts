@@ -1,3 +1,9 @@
+# Script parameter
+param(
+    [Parameter(Mandatory=$false)]
+    [bool]$DryRun = $true
+)
+
 # Function to get Snowflake linked services
 function Get-SnowflakeLinkedServices {
     param (
@@ -40,21 +46,29 @@ function Deploy-SnowflakeLinkedService {
     param (
         [object]$linkedService,
         [string]$adfName,
-        [string]$resourceGroupName
+        [string]$resourceGroupName,
+        [bool]$DryRun = $true
     )
     
-    Set-AzDataFactoryV2LinkedService -DataFactoryName $adfName -ResourceGroupName $resourceGroupName -Name $linkedService.Name -DefinitionFile $linkedService
+    $params = @{
+        DataFactoryName = $adfName
+        ResourceGroupName = $resourceGroupName
+        Name = $linkedService.Name
+        DefinitionFile = $linkedService
+    }
+
+    if ($DryRun) {
+        Set-AzDataFactoryV2LinkedService @params -WhatIf
+    } else {
+        Set-AzDataFactoryV2LinkedService @params
+    }
 }
 
 # Define config path
-$configPath = "."
+$configPath = "..\"
 
 # Read the JSON file
-$jsonContent = Get-Content -Path "build.json" | ConvertFrom-Json
-
-# Get resource groups from config
-$rgEast = $jsonContent.config.rgEast
-$rgWest = $jsonContent.config.rgWest
+$jsonContent = Get-Content -Path "$configPath\build.json" | ConvertFrom-Json
 
 # Check if ADFLinkedServiceFQDN exists
 if ($jsonContent.ADFLinkedServiceFQDN) {
@@ -62,46 +76,33 @@ if ($jsonContent.ADFLinkedServiceFQDN) {
     $adfValues = $jsonContent.ADFLinkedServiceFQDN
     if ($adfValues -is [Array]) {
         # Handle array case
-        for ($i = 0; $i -lt $adfValues.Count; $i++) {
-            $adf = $adfValues[$i]
-            $resourceGroup = if ($jsonContent.config.snowflake -and $jsonContent.config.azure) {
-                $rgWest[$i]
-            } else {
-                $rgEast[$i]
-            }
-            
-            Write-Host "Processing ADF Linked Service: $adf with Resource Group: $resourceGroup"
+        foreach ($adfConfig in $adfValues) {
+            Write-Host "Processing ADF Linked Service: $($adfConfig.adf) with Resource Group: $($adfConfig.resourceGroup)"
             
             # Step 1: Get Snowflake linked services
-            $snowflakeServices = Get-SnowflakeLinkedServices -adfName $adf -resourceGroupName $resourceGroup
+            $snowflakeServices = Get-SnowflakeLinkedServices -adfName $adfConfig.adf -resourceGroupName $adfConfig.resourceGroup
             
             # Step 2: Update account name for each service
             foreach ($service in $snowflakeServices) {
                 $updatedService = Update-SnowflakeAccountName -linkedService $service
                 
                 # Step 3: Redeploy the updated service
-                Deploy-SnowflakeLinkedService -linkedService $updatedService -adfName $adf -resourceGroupName $resourceGroup
+                Deploy-SnowflakeLinkedService -linkedService $updatedService -adfName $adfConfig.adf -resourceGroupName $adfConfig.resourceGroup -DryRun $DryRun
             }
         }
     } else {
         # Handle single value case
-        $resourceGroup = if ($jsonContent.config.snowflake -and $jsonContent.config.azure) {
-            $rgWest
-        } else {
-            $rgEast
-        }
-        
-        Write-Host "Processing ADF Linked Service: $adfValues with Resource Group: $resourceGroup"
+        Write-Host "Processing ADF Linked Service: $($adfValues.adf) with Resource Group: $($adfValues.resourceGroup)"
         
         # Step 1: Get Snowflake linked services
-        $snowflakeServices = Get-SnowflakeLinkedServices -adfName $adfValues -resourceGroupName $resourceGroup
+        $snowflakeServices = Get-SnowflakeLinkedServices -adfName $adfValues.adf -resourceGroupName $adfValues.resourceGroup
         
         # Step 2: Update account name for each service
         foreach ($service in $snowflakeServices) {
             $updatedService = Update-SnowflakeAccountName -linkedService $service
             
             # Step 3: Redeploy the updated service
-            Deploy-SnowflakeLinkedService -linkedService $updatedService -adfName $adfValues -resourceGroupName $resourceGroup
+            Deploy-SnowflakeLinkedService -linkedService $updatedService -adfName $adfValues.adf -resourceGroupName $adfValues.resourceGroup -DryRun $DryRun
         }
     }
 } else {

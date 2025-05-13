@@ -1,118 +1,264 @@
 {
-  "batchAccountScaleDown": [
-    "prodBatchSales",
-    "prodBatchFinance",
-    "prodBatchCustomer",
-    "prodBatchAccounting",
-    "prodBatchRetail",
-    "prodBatchNonedw",
-    "prodBatchAssociates"
-  ],
   "ADFTriggerStop": [
-    "prodSalesADF",
-    "prodFinanceADF",
-    "prodCustomerADF",
-    "prodAccountingADF",
-    "prodRetailADF",
-    "prodNonedwADF",
-    "prodAssociatesADF"
+    {
+      "adf": "prodSalesADF",
+      "resourceGroup": "prodSalesRG"
+    },
+    {
+      "adf": "prodFinanceADF",
+      "resourceGroup": "prodFinanceRG"
+    },
+    {
+      "adf": "prodCustomerADF",
+      "resourceGroup": "prodCustomerRG"
+    },
+    {
+      "adf": "prodAccountingADF",
+      "resourceGroup": "prodAccountingRG"
+    },
+    {
+      "adf": "prodRetailADF",
+      "resourceGroup": "prodRetailRG"
+    },
+    {
+      "adf": "prodNonedwADF",
+      "resourceGroup": "prodNonedwRG"
+    },
+    {
+      "adf": "prodAssociatesADF",
+      "resourceGroup": "prodAssociatesRG"
+    }
   ],
   "storageGRS": [
-    "prodStorageSales",
-    "prodStorageFinance",
-    "prodStorageCustomer",
-    "prodStorageAccounting",
-    "prodStorageRetail",
-    "prodStorageNonedw",
-    "prodStorageAssociates"
-  ],
-  "ADFLinkedServiceFQDN": [
-    "DRSalesADF",
-    "DRFinanceADF",
-    "DRCustomerADF",
-    "DRAccountingADF",
-    "DRRetailADF",
-    "DRNonedwADF",
-    "DRAssociatesADF"
-  ],
-  "kvSyncTo": [
-    "DRKvSales",
-    "DRKvFinance",
-    "DRKvCustomer",
-    "DRKvAccounting",
-    "DRKvRetail",
-    "DRKvNonedw",
-    "DRKvAssociates"
-  ],
-  "ADFTriggerStart": [
-    "DRSalesADF",
-    "DRFinanceADF",
-    "DRCustomerADF",
-    "DRAccountingADF",
-    "DRRetailADF",
-    "DRNonedwADF",
-    "DRAssociatesADF"
+    {
+      "storage": "prodStorageSales",
+      "resourceGroup": "prodSalesRG"
+    },
+    {
+      "storage": "prodStorageFinance",
+      "resourceGroup": "prodFinanceRG"
+    },
+    {
+      "storage": "prodStorageCustomer",
+      "resourceGroup": "prodCustomerRG"
+    },
+    {
+      "storage": "prodStorageAccounting",
+      "resourceGroup": "prodAccountingRG"
+    },
+    {
+      "storage": "prodStorageRetail",
+      "resourceGroup": "prodRetailRG"
+    },
+    {
+      "storage": "prodStorageNonedw",
+      "resourceGroup": "prodNonedwRG"
+    },
+    {
+      "storage": "prodStorageAssociates",
+      "resourceGroup": "prodAssociatesRG"
+    }
   ],
   "kvSyncFrom": [
-    "prodKvSales",
-    "prodKvFinance",
-    "prodKvCustomer",
-    "prodKvAccounting",
-    "prodKvRetail",
-    "prodKvNonedw",
-    "prodKvAssociates"
+    {
+      "kv": "prodKvSales",
+      "resourceGroup": "prodSalesRG"
+    },
+    {
+      "kv": "prodKvFinance",
+      "resourceGroup": "prodFinanceRG"
+    },
+    {
+      "kv": "prodKvCustomer",
+      "resourceGroup": "prodCustomerRG"
+    },
+    {
+      "kv": "prodKvAccounting",
+      "resourceGroup": "prodAccountingRG"
+    },
+    {
+      "kv": "prodKvRetail",
+      "resourceGroup": "prodRetailRG"
+    },
+    {
+      "kv": "prodKvNonedw",
+      "resourceGroup": "prodNonedwRG"
+    },
+    {
+      "kv": "prodKvAssociates",
+      "resourceGroup": "prodAssociatesRG"
+    }
   ],
-  "batchAccountScaleUp": [
-    "DRBatchSales",
-    "DRBatchFinance",
-    "DRBatchCustomer",
-    "DRBatchAccounting",
-    "DRBatchRetail",
-    "DRBatchNonedw",
-    "DRBatchAssociates"
+  "ADFLinkedServiceFQDN": [
+    {
+      "adf": "DRSalesADF",
+      "resourceGroup": "DRSalesRG"
+    },
+    {
+      "adf": "DRFinanceADF",
+      "resourceGroup": "DRFinanceRG"
+    },
+    {
+      "adf": "DRCustomerADF",
+      "resourceGroup": "DRCustomerRG"
+    },
+    {
+      "adf": "DRAccountingADF",
+      "resourceGroup": "DRAccountingRG"
+    },
+    {
+      "adf": "DRRetailADF",
+      "resourceGroup": "DRRetailRG"
+    },
+    {
+      "adf": "DRNonedwADF",
+      "resourceGroup": "DRNonedwRG"
+    },
+    {
+      "adf": "DRAssociatesADF",
+      "resourceGroup": "DRAssociatesRG"
+    }
+  ],
+  "ADFTriggerStart": [
+    {
+      "adf": "DRSalesADF",
+      "resourceGroup": "DRSalesRG"
+    },
+    {
+      "adf": "DRFinanceADF",
+      "resourceGroup": "DRFinanceRG"
+    },
+    {
+      "adf": "DRCustomerADF",
+      "resourceGroup": "DRCustomerRG"
+    },
+    {
+      "adf": "DRAccountingADF",
+      "resourceGroup": "DRAccountingRG"
+    },
+    {
+      "adf": "DRRetailADF",
+      "resourceGroup": "DRRetailRG"
+    },
+    {
+      "adf": "DRNonedwADF",
+      "resourceGroup": "DRNonedwRG"
+    },
+    {
+      "adf": "DRAssociatesADF",
+      "resourceGroup": "DRAssociatesRG"
+    }
   ],
   "config": {
-    "domain": "Associates",
-    "rgEast": [
-      "prodSalesRG",
-      "prodFinanceRG",
-      "prodCustomerRG",
-      "prodAccountingRG",
-      "prodRetailRG",
-      "prodNonedwRG",
-      "prodAssociatesRG"
-    ],
+    "snowflake": true,
     "storage": true,
-    "mode": "failover",
     "azure": true,
     "environment": "prod",
-    "rgWest": [
-      "DRSalesRG",
-      "DRFinanceRG",
-      "DRCustomerRG",
-      "DRAccountingRG",
-      "DRRetailRG",
-      "DRNonedwRG",
-      "DRAssociatesRG"
-    ],
-    "snowflake": true
+    "domain": "Associates",
+    "mode": "failover"
   },
-  "batchPoolScaleUp": [
-    "DRpoolBatchSales",
-    "DRpoolBatchFinance",
-    "DRpoolBatchCustomer",
-    "DRpoolBatchAccounting",
-    "DRpoolBatchRetail",
-    "DRpoolBatchNonedw",
-    "DRpoolBatchAssociates"
+  "batchAccountScaleDown": [
+    {
+      "batch": "prodBatchSales",
+      "pool": "prodpoolBatchSales",
+      "resourceGroup": "prodSalesRG"
+    },
+    {
+      "batch": "prodBatchFinance",
+      "pool": "prodpoolBatchFinance",
+      "resourceGroup": "prodFinanceRG"
+    },
+    {
+      "batch": "prodBatchCustomer",
+      "pool": "prodpoolBatchCustomer",
+      "resourceGroup": "prodCustomerRG"
+    },
+    {
+      "batch": "prodBatchAccounting",
+      "pool": "prodpoolBatchAccounting",
+      "resourceGroup": "prodAccountingRG"
+    },
+    {
+      "batch": "prodBatchRetail",
+      "pool": "prodpoolBatchRetail",
+      "resourceGroup": "prodRetailRG"
+    },
+    {
+      "batch": "prodBatchNonedw",
+      "pool": "prodpoolBatchNonedw",
+      "resourceGroup": "prodNonedwRG"
+    },
+    {
+      "batch": "prodBatchAssociates",
+      "pool": "prodpoolBatchAssociates",
+      "resourceGroup": "prodAssociatesRG"
+    }
   ],
-  "batchPoolScaleDown": [
-    "prodpoolBatchSales",
-    "prodpoolBatchFinance",
-    "prodpoolBatchCustomer",
-    "prodpoolBatchAccounting",
-    "prodpoolBatchRetail",
-    "prodpoolBatchNonedw",
-    "prodpoolBatchAssociates"
+  "kvSyncTo": [
+    {
+      "kv": "DRKvSales",
+      "resourceGroup": "DRSalesRG"
+    },
+    {
+      "kv": "DRKvFinance",
+      "resourceGroup": "DRFinanceRG"
+    },
+    {
+      "kv": "DRKvCustomer",
+      "resourceGroup": "DRCustomerRG"
+    },
+    {
+      "kv": "DRKvAccounting",
+      "resourceGroup": "DRAccountingRG"
+    },
+    {
+      "kv": "DRKvRetail",
+      "resourceGroup": "DRRetailRG"
+    },
+    {
+      "kv": "DRKvNonedw",
+      "resourceGroup": "DRNonedwRG"
+    },
+    {
+      "kv": "DRKvAssociates",
+      "resourceGroup": "DRAssociatesRG"
+    }
+  ],
+  "batchAccountScaleUp": [
+    {
+      "batch": "DRBatchSales",
+      "pool": "DRpoolBatchSales",
+      "resourceGroup": "DRSalesRG"
+    },
+    {
+      "batch": "DRBatchFinance",
+      "pool": "DRpoolBatchFinance",
+      "resourceGroup": "DRFinanceRG"
+    },
+    {
+      "batch": "DRBatchCustomer",
+      "pool": "DRpoolBatchCustomer",
+      "resourceGroup": "DRCustomerRG"
+    },
+    {
+      "batch": "DRBatchAccounting",
+      "pool": "DRpoolBatchAccounting",
+      "resourceGroup": "DRAccountingRG"
+    },
+    {
+      "batch": "DRBatchRetail",
+      "pool": "DRpoolBatchRetail",
+      "resourceGroup": "DRRetailRG"
+    },
+    {
+      "batch": "DRBatchNonedw",
+      "pool": "DRpoolBatchNonedw",
+      "resourceGroup": "DRNonedwRG"
+    },
+    {
+      "batch": "DRBatchAssociates",
+      "pool": "DRpoolBatchAssociates",
+      "resourceGroup": "DRAssociatesRG"
+    }
   ]
 }
