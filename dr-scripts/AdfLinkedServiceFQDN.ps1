@@ -1,8 +1,50 @@
 # Script parameter
 param(
     [Parameter(Mandatory=$false)]
-    [bool]$DryRun = $true
+    [bool]$DryRun = $true,
+
+    [Parameter(Mandatory=$true)]
+    [string]$oldFQDN,
+
+    [Parameter(Mandatory=$tru)]
+    [string]$newFQDN,
+
+    [Parameter(Mandatory=$false)]
+    [string]$configPath = ".."
+    
 )
+function GetLinkedServiceByADF {
+    param (
+        [string]$ResourceGroupName,
+        [string]$FactoryName,
+        [string]$LinkedServiceName
+    )
+
+    try {
+        # Get access token
+        $Token = (Get-AzAccessToken).token
+        $SubscriptionId = (Get-AzContext).Subscription.id
+
+        # Construct the API URL
+        $ApiUrl = "https://management.azure.com/subscriptions/$SubscriptionId/resourcegroups/$ResourceGroupName/providers/Microsoft.DataFactory/factories/$FactoryName/linkedservices/$LinkedServiceName"
+        $ApiUrl = $ApiUrl + "?api-version=2018-06-01"
+
+        # Set headers
+        $Headers = @{
+            "Authorization" = "Bearer $Token"
+            "Content-Type"  = "application/json"
+        }
+
+        # Make the API call
+        $Response = Invoke-RestMethod -Uri $ApiUrl -Headers $Headers -Method Get
+
+        # Return the response
+        return $Response
+    } catch {
+        Write-Error "Error getting linked service details: $_"
+        throw
+    }
+}
 
 # Function to get Snowflake linked services
 function Get-SnowflakeLinkedServices {
@@ -11,9 +53,14 @@ function Get-SnowflakeLinkedServices {
         [string]$resourceGroupName
     )
     
-    $linkedServices = Get-AzDataFactoryLinkedService -DataFactoryName $adfName -ResourceGroupName $resourceGroupName
-    $snowflakeServices = $linkedServices | Where-Object { 
-        $_.Properties.Type -eq "Snowflake" -or $_.Properties.Type -eq "SnowflakeV2"
+    $linkedServices = Get-AzDataFactoryV2LinkedService -DataFactoryName $adfName -ResourceGroupName $resourceGroupName
+    
+    $snowflakeServices = @()
+    foreach ($linkedService in $linkedServices) {
+        $linkedServiceDetails = GetLinkedServiceByADF -ResourceGroupName $resourceGroupName -FactoryName $adfName -LinkedServiceName $linkedService.Name
+        if ($linkedServiceDetails.properties.type -eq 'Snowflake' -or $linkedServiceDetails.properties.type -eq 'SnowflakeV2') {
+            $snowflakeServices += $linkedServiceDetails
+        }
     }
     
     return $snowflakeServices
@@ -22,22 +69,25 @@ function Get-SnowflakeLinkedServices {
 # Function to change account name in connection string
 function Update-SnowflakeAccountName {
     param (
-        [object]$linkedService
+        [object]$linkedService,
+        [string]$oldFQDN,
+        [string]$newFQDN
     )
-    
-    if ($linkedService.Properties.Type -eq "Snowflake") {
+
         # For Snowflake V1
-        $connectionString = $linkedService.Properties.TypeProperties.ConnectionString
-        $newConnectionString = $connectionString -replace "company.privatelink", "company2.privatelink"
-        $linkedService.Properties.TypeProperties.ConnectionString = $newConnectionString
-    }
-    else {
+        if ($linkedService.Properties.type -eq "Snowflake") {
+            $connectionString = $linkedService.Properties.typeProperties.ConnectionString
+            $newConnectionString = $connectionString -replace "(?<=://)$([regex]::Escape($oldFQDN))(?=\.)", $newFQDN
+
+            write-host "ConnectionString: $newConnectionString"
+            $linkedService.Properties.typeProperties.ConnectionString = $newConnectionString
+            
+        } else {
         # For Snowflake V2
-        $accountIdentifier = $linkedService.Properties.TypeProperties.AccountIdentifier
-        $newAccountIdentifier = $accountIdentifier -replace "company.privatelink", "company2.privatelink"
-        $linkedService.Properties.TypeProperties.AccountIdentifier = $newAccountIdentifier
-    }
-    
+            $currentIdentifier = $linkedService.Properties.typeProperties.AccountIdentifier
+            $newIdentifier = $currentIdentifier -replace "(?<=://)$([regex]::Escape($oldFQDN))(?=\.)", $newFQDN  
+            $linkedService.Properties.typeProperties.AccountIdentifier = $newIdentifier      
+        }
     return $linkedService
 }
 
@@ -58,7 +108,7 @@ function Deploy-SnowflakeLinkedService {
         if ($DryRun) {
             Set-AzDataFactoryV2LinkedService -ResourceGroupName $resourceGroupName -DataFactoryName $adfName -Name $linkedService.Name -DefinitionFile $tempFile -WhatIf
         } else {
-            Set-AzDataFactoryV2LinkedService -ResourceGroupName $resourceGroupName -DataFactoryName $adfName -Name $linkedService.Name -DefinitionFile $tempFile
+            Set-AzDataFactoryV2LinkedService -ResourceGroupName $resourceGroupName -DataFactoryName $adfName -Name $linkedService.Name -DefinitionFile $tempFile -force
         }
     }
     finally {
@@ -68,6 +118,8 @@ function Deploy-SnowflakeLinkedService {
         }
     }
 }
+
+
 
 # Define config path
 $configPath = "..\"

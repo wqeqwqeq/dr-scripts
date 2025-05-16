@@ -40,7 +40,7 @@ def update_snowflake_fqdns(config_file: str, old_fqdn: str, new_fqdn: str, dry_r
         )
 
         # Get all Snowflake linked services
-        snowflake_services = linked_services.list_linked_services(filter_by_type='Snowflake')
+        snowflake_services = linked_services.list_linked_services(filter_by_type=['Snowflake','SnowflakeV2'])
         
         if not snowflake_services:
             print(f"No Snowflake linked services found in {factory_name}")

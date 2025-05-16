@@ -6,7 +6,7 @@ import time
 import json
 import re
 from datetime import datetime, timedelta
-from typing import List, Dict
+from typing import List, Dict, Union
 from subprocess import PIPE, run
 
 
@@ -57,8 +57,7 @@ class ADFBase:
 
 class ADFLinkedServices(ADFBase):
 
-
-    def list_linked_services(self, filter_by_type: str = None) -> List[Dict]:
+    def list_linked_services(self, filter_by_type: Union[str, List[str]] = None) -> List[Dict]:
         """
         List all linked services in the Azure Data Factory.
         """
@@ -74,10 +73,17 @@ class ADFLinkedServices(ADFBase):
             for service in linked_services:
                 service_dict = service.as_dict()
                 
-                # If filter_by_type is specified, only include services of that type
+                # If filter_by_type is specified, check if service type matches
                 if filter_by_type:
-                    if service_dict.get('properties', {}).get('type') == filter_by_type:
-                        services_list.append(service_dict)
+                    service_type = service_dict.get('properties', {}).get('type')
+                    if isinstance(filter_by_type, str):
+                        # Single type filter
+                        if service_type == filter_by_type:
+                            services_list.append(service_dict)
+                    elif isinstance(filter_by_type, list):
+                        # Multiple type filter
+                        if service_type in filter_by_type:
+                            services_list.append(service_dict)
                 else:
                     services_list.append(service_dict)
             

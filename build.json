@@ -1,264 +1,234 @@
 {
-  "ADFTriggerStop": [
-    {
-      "adf": "prodSalesADF",
-      "resourceGroup": "prodSalesRG"
-    },
-    {
-      "adf": "prodFinanceADF",
-      "resourceGroup": "prodFinanceRG"
-    },
-    {
-      "adf": "prodCustomerADF",
-      "resourceGroup": "prodCustomerRG"
-    },
-    {
-      "adf": "prodAccountingADF",
-      "resourceGroup": "prodAccountingRG"
-    },
-    {
-      "adf": "prodRetailADF",
-      "resourceGroup": "prodRetailRG"
-    },
-    {
-      "adf": "prodNonedwADF",
-      "resourceGroup": "prodNonedwRG"
-    },
-    {
-      "adf": "prodAssociatesADF",
-      "resourceGroup": "prodAssociatesRG"
-    }
-  ],
-  "storageGRS": [
-    {
-      "storage": "prodStorageSales",
-      "resourceGroup": "prodSalesRG"
-    },
-    {
-      "storage": "prodStorageFinance",
-      "resourceGroup": "prodFinanceRG"
-    },
-    {
-      "storage": "prodStorageCustomer",
-      "resourceGroup": "prodCustomerRG"
-    },
-    {
-      "storage": "prodStorageAccounting",
-      "resourceGroup": "prodAccountingRG"
-    },
-    {
-      "storage": "prodStorageRetail",
-      "resourceGroup": "prodRetailRG"
-    },
-    {
-      "storage": "prodStorageNonedw",
-      "resourceGroup": "prodNonedwRG"
-    },
-    {
-      "storage": "prodStorageAssociates",
-      "resourceGroup": "prodAssociatesRG"
-    }
-  ],
-  "kvSyncFrom": [
-    {
-      "kv": "prodKvSales",
-      "resourceGroup": "prodSalesRG"
-    },
-    {
-      "kv": "prodKvFinance",
-      "resourceGroup": "prodFinanceRG"
-    },
-    {
-      "kv": "prodKvCustomer",
-      "resourceGroup": "prodCustomerRG"
-    },
-    {
-      "kv": "prodKvAccounting",
-      "resourceGroup": "prodAccountingRG"
-    },
-    {
-      "kv": "prodKvRetail",
-      "resourceGroup": "prodRetailRG"
-    },
-    {
-      "kv": "prodKvNonedw",
-      "resourceGroup": "prodNonedwRG"
-    },
-    {
-      "kv": "prodKvAssociates",
-      "resourceGroup": "prodAssociatesRG"
-    }
-  ],
   "ADFLinkedServiceFQDN": [
     {
-      "adf": "DRSalesADF",
-      "resourceGroup": "DRSalesRG"
+      "resourceGroup": "DRSalesRG",
+      "adf": "DRSalesADF"
     },
     {
-      "adf": "DRFinanceADF",
-      "resourceGroup": "DRFinanceRG"
+      "resourceGroup": "DRFinanceRG",
+      "adf": "DRFinanceADF"
     },
     {
-      "adf": "DRCustomerADF",
-      "resourceGroup": "DRCustomerRG"
+      "resourceGroup": "DRCustomerRG",
+      "adf": "DRCustomerADF"
     },
     {
-      "adf": "DRAccountingADF",
-      "resourceGroup": "DRAccountingRG"
+      "resourceGroup": "DRAccountingRG",
+      "adf": "DRAccountingADF"
     },
     {
-      "adf": "DRRetailADF",
-      "resourceGroup": "DRRetailRG"
+      "resourceGroup": "DRRetailRG",
+      "adf": "DRRetailADF"
     },
     {
-      "adf": "DRNonedwADF",
-      "resourceGroup": "DRNonedwRG"
+      "resourceGroup": "DRNonedwRG",
+      "adf": "DRNonedwADF"
     },
     {
-      "adf": "DRAssociatesADF",
-      "resourceGroup": "DRAssociatesRG"
-    }
-  ],
-  "ADFTriggerStart": [
-    {
-      "adf": "DRSalesADF",
-      "resourceGroup": "DRSalesRG"
-    },
-    {
-      "adf": "DRFinanceADF",
-      "resourceGroup": "DRFinanceRG"
-    },
-    {
-      "adf": "DRCustomerADF",
-      "resourceGroup": "DRCustomerRG"
-    },
-    {
-      "adf": "DRAccountingADF",
-      "resourceGroup": "DRAccountingRG"
-    },
-    {
-      "adf": "DRRetailADF",
-      "resourceGroup": "DRRetailRG"
-    },
-    {
-      "adf": "DRNonedwADF",
-      "resourceGroup": "DRNonedwRG"
-    },
-    {
-      "adf": "DRAssociatesADF",
-      "resourceGroup": "DRAssociatesRG"
-    }
-  ],
-  "config": {
-    "snowflake": true,
-    "storage": true,
-    "azure": true,
-    "environment": "prod",
-    "domain": "Associates",
-    "mode": "failover"
-  },
-  "batchAccountScaleDown": [
-    {
-      "batch": "prodBatchSales",
-      "pool": "prodpoolBatchSales",
-      "resourceGroup": "prodSalesRG"
-    },
-    {
-      "batch": "prodBatchFinance",
-      "pool": "prodpoolBatchFinance",
-      "resourceGroup": "prodFinanceRG"
-    },
-    {
-      "batch": "prodBatchCustomer",
-      "pool": "prodpoolBatchCustomer",
-      "resourceGroup": "prodCustomerRG"
-    },
-    {
-      "batch": "prodBatchAccounting",
-      "pool": "prodpoolBatchAccounting",
-      "resourceGroup": "prodAccountingRG"
-    },
-    {
-      "batch": "prodBatchRetail",
-      "pool": "prodpoolBatchRetail",
-      "resourceGroup": "prodRetailRG"
-    },
-    {
-      "batch": "prodBatchNonedw",
-      "pool": "prodpoolBatchNonedw",
-      "resourceGroup": "prodNonedwRG"
-    },
-    {
-      "batch": "prodBatchAssociates",
-      "pool": "prodpoolBatchAssociates",
-      "resourceGroup": "prodAssociatesRG"
-    }
-  ],
-  "kvSyncTo": [
-    {
-      "kv": "DRKvSales",
-      "resourceGroup": "DRSalesRG"
-    },
-    {
-      "kv": "DRKvFinance",
-      "resourceGroup": "DRFinanceRG"
-    },
-    {
-      "kv": "DRKvCustomer",
-      "resourceGroup": "DRCustomerRG"
-    },
-    {
-      "kv": "DRKvAccounting",
-      "resourceGroup": "DRAccountingRG"
-    },
-    {
-      "kv": "DRKvRetail",
-      "resourceGroup": "DRRetailRG"
-    },
-    {
-      "kv": "DRKvNonedw",
-      "resourceGroup": "DRNonedwRG"
-    },
-    {
-      "kv": "DRKvAssociates",
-      "resourceGroup": "DRAssociatesRG"
+      "resourceGroup": "DRAssociatesRG",
+      "adf": "DRAssociatesADF"
     }
   ],
   "batchAccountScaleUp": [
     {
+      "resourceGroup": "DRSalesRG",
       "batch": "DRBatchSales",
-      "pool": "DRpoolBatchSales",
-      "resourceGroup": "DRSalesRG"
+      "pool": "DRpoolBatchSales"
     },
     {
+      "resourceGroup": "DRFinanceRG",
       "batch": "DRBatchFinance",
-      "pool": "DRpoolBatchFinance",
-      "resourceGroup": "DRFinanceRG"
+      "pool": "DRpoolBatchFinance"
     },
     {
+      "resourceGroup": "DRCustomerRG",
       "batch": "DRBatchCustomer",
-      "pool": "DRpoolBatchCustomer",
-      "resourceGroup": "DRCustomerRG"
+      "pool": "DRpoolBatchCustomer"
     },
     {
+      "resourceGroup": "DRAccountingRG",
       "batch": "DRBatchAccounting",
-      "pool": "DRpoolBatchAccounting",
-      "resourceGroup": "DRAccountingRG"
+      "pool": "DRpoolBatchAccounting"
     },
     {
+      "resourceGroup": "DRRetailRG",
       "batch": "DRBatchRetail",
-      "pool": "DRpoolBatchRetail",
-      "resourceGroup": "DRRetailRG"
+      "pool": "DRpoolBatchRetail"
     },
     {
+      "resourceGroup": "DRNonedwRG",
       "batch": "DRBatchNonedw",
-      "pool": "DRpoolBatchNonedw",
-      "resourceGroup": "DRNonedwRG"
+      "pool": "DRpoolBatchNonedw"
     },
     {
+      "resourceGroup": "DRAssociatesRG",
       "batch": "DRBatchAssociates",
-      "pool": "DRpoolBatchAssociates",
-      "resourceGroup": "DRAssociatesRG"
+      "pool": "DRpoolBatchAssociates"
     }
-  ]
+  ],
+  "batchAccountScaleDown": [
+    {
+      "resourceGroup": "qaSalesRG",
+      "batch": "qaBatchSales",
+      "pool": "qapoolBatchSales"
+    },
+    {
+      "resourceGroup": "qaFinanceRG",
+      "batch": "qaBatchFinance",
+      "pool": "qapoolBatchFinance"
+    },
+    {
+      "resourceGroup": "qaCustomerRG",
+      "batch": "qaBatchCustomer",
+      "pool": "qapoolBatchCustomer"
+    },
+    {
+      "resourceGroup": "qaAccountingRG",
+      "batch": "qaBatchAccounting",
+      "pool": "qapoolBatchAccounting"
+    },
+    {
+      "resourceGroup": "qaRetailRG",
+      "batch": "qaBatchRetail",
+      "pool": "qapoolBatchRetail"
+    },
+    {
+      "resourceGroup": "qaNonedwRG",
+      "batch": "qaBatchNonedw",
+      "pool": "qapoolBatchNonedw"
+    },
+    {
+      "resourceGroup": "qaAssociatesRG",
+      "batch": "qaBatchAssociates",
+      "pool": "qapoolBatchAssociates"
+    }
+  ],
+  "kvSyncFrom": [
+    {
+      "resourceGroup": "qaSalesRG",
+      "kv": "qaKvSales"
+    },
+    {
+      "resourceGroup": "qaFinanceRG",
+      "kv": "qaKvFinance"
+    },
+    {
+      "resourceGroup": "qaCustomerRG",
+      "kv": "qaKvCustomer"
+    },
+    {
+      "resourceGroup": "qaAccountingRG",
+      "kv": "qaKvAccounting"
+    },
+    {
+      "resourceGroup": "qaRetailRG",
+      "kv": "qaKvRetail"
+    },
+    {
+      "resourceGroup": "qaNonedwRG",
+      "kv": "qaKvNonedw"
+    },
+    {
+      "resourceGroup": "qaAssociatesRG",
+      "kv": "qaKvAssociates"
+    }
+  ],
+  "kvSyncTo": [
+    {
+      "resourceGroup": "DRSalesRG",
+      "kv": "DRKvSales"
+    },
+    {
+      "resourceGroup": "DRFinanceRG",
+      "kv": "DRKvFinance"
+    },
+    {
+      "resourceGroup": "DRCustomerRG",
+      "kv": "DRKvCustomer"
+    },
+    {
+      "resourceGroup": "DRAccountingRG",
+      "kv": "DRKvAccounting"
+    },
+    {
+      "resourceGroup": "DRRetailRG",
+      "kv": "DRKvRetail"
+    },
+    {
+      "resourceGroup": "DRNonedwRG",
+      "kv": "DRKvNonedw"
+    },
+    {
+      "resourceGroup": "DRAssociatesRG",
+      "kv": "DRKvAssociates"
+    }
+  ],
+  "ADFTriggerStop": [
+    {
+      "resourceGroup": "qaSalesRG",
+      "adf": "qaSalesADF"
+    },
+    {
+      "resourceGroup": "qaFinanceRG",
+      "adf": "qaFinanceADF"
+    },
+    {
+      "resourceGroup": "qaCustomerRG",
+      "adf": "qaCustomerADF"
+    },
+    {
+      "resourceGroup": "qaAccountingRG",
+      "adf": "qaAccountingADF"
+    },
+    {
+      "resourceGroup": "qaRetailRG",
+      "adf": "qaRetailADF"
+    },
+    {
+      "resourceGroup": "qaNonedwRG",
+      "adf": "qaNonedwADF"
+    },
+    {
+      "resourceGroup": "qaAssociatesRG",
+      "adf": "qaAssociatesADF"
+    }
+  ],
+  "ADFTriggerStart": [
+    {
+      "resourceGroup": "DRSalesRG",
+      "adf": "DRSalesADF"
+    },
+    {
+      "resourceGroup": "DRFinanceRG",
+      "adf": "DRFinanceADF"
+    },
+    {
+      "resourceGroup": "DRCustomerRG",
+      "adf": "DRCustomerADF"
+    },
+    {
+      "resourceGroup": "DRAccountingRG",
+      "adf": "DRAccountingADF"
+    },
+    {
+      "resourceGroup": "DRRetailRG",
+      "adf": "DRRetailADF"
+    },
+    {
+      "resourceGroup": "DRNonedwRG",
+      "adf": "DRNonedwADF"
+    },
+    {
+      "resourceGroup": "DRAssociatesRG",
+      "adf": "DRAssociatesADF"
+    }
+  ],
+  "config": {
+    "mode": "failover",
+    "storage": false,
+    "snowflake": true,
+    "azure": true,
+    "domain": "All",
+    "environment": "qa"
+  }
 }
