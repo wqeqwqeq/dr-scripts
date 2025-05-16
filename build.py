@@ -268,9 +268,12 @@ def main():
     parser = argparse.ArgumentParser(description='Generate configuration JSON for DR pipeline')
     parser.add_argument('--mode', choices=['failover', 'failback'], default='failover',
                       help='Operation mode (default: failover)')
-    parser.add_argument('--storage', action='store_true', help='Include storage configuration')
-    parser.add_argument('--snowflake', action='store_true', help='Include Snowflake configuration')
-    parser.add_argument('--azure', action='store_true', default=True, help='Include Azure configuration')
+    parser.add_argument('--storage', type=str, choices=['True', 'False'], default='False',
+                      help='Include storage configuration (True/False)')
+    parser.add_argument('--snowflake', type=str, choices=['True', 'False'], default='False',
+                      help='Include Snowflake configuration (True/False)')
+    parser.add_argument('--azure', type=str, choices=['True', 'False'], default='True',
+                      help='Include Azure configuration (True/False)')
     parser.add_argument('--domain', choices=['All', 'Sales', 'Finance', 'Customer', 'Accounting', 'Retail', 'Nonedw', 'Associates'],
                       default='Sales', help='Target domain (default: Sales)')
     parser.add_argument('--environment', choices=['qa', 'prod'], default='qa',
@@ -279,11 +282,16 @@ def main():
 
     args = parser.parse_args()
 
+    # Convert string boolean values to actual booleans
+    storage = args.storage.lower() == 'true'
+    snowflake = args.snowflake.lower() == 'true'
+    azure = args.azure.lower() == 'true'
+
     json_data = generate_json(
         mode=args.mode,
-        storage=args.storage,
-        snowflake=args.snowflake,
-        azure=args.azure,
+        storage=storage,
+        snowflake=snowflake,
+        azure=azure,
         domain=args.domain,
         environment=args.environment,
         customer_json=args.customer_json
@@ -291,9 +299,9 @@ def main():
 
     # Print configuration for debugging
     print("Mode:", args.mode)
-    print("Storage Down:", args.storage)
-    print("Snowflake Down:", args.snowflake)
-    print("Azure Down:", args.azure)
+    print("Storage Down:", storage)
+    print("Snowflake Down:", snowflake)
+    print("Azure Down:", azure)
     print("Domain:", args.domain)
     print("Environment:", args.environment)
 
