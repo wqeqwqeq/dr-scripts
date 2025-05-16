@@ -7,6 +7,18 @@ import json
 import re
 from datetime import datetime, timedelta
 from typing import List, Dict
+from subprocess import PIPE, run
+
+
+def run_cmd(msg):
+    return run(
+        args=msg, stdout=PIPE, stderr=PIPE, universal_newlines=True, shell=True
+    )
+
+
+def get_subscription_id():
+    cmd = "az account show --query id --output tsv"
+    return run_cmd(cmd).stdout.strip()
 
 
 class ADFBase:
@@ -393,4 +405,7 @@ class ADFIntegrationRuntime(ADFBase):
 
 
 
+# %%
+# todo 
+# if the test ls need to trigger ir, create a function to do that 
 # %%
