@@ -168,47 +168,49 @@ def generate_json(
             ]
 
         if azure:
-            json_data["batchAccountScaleUp"] = [
+            # Create new batchAccountScale structure
+            json_data["batchAccountScale"] = [
                 {
-                    "resourceGroup": rg_map[d]["DR"],
-                    "batch": batch_map[d]["DR"],
-                    "pool": batch_map[d]["pool"]["DR"]
+                    "scaleUp": {
+                        "resourceGroup": rg_map[d]["DR"],
+                        "batch": batch_map[d]["DR"],
+                        "pool": batch_map[d]["pool"]["DR"]
+                    },
+                    "scaleDown": {
+                        "resourceGroup": rg_map[d][environment.lower()],
+                        "batch": batch_map[d][environment.lower()],
+                        "pool": batch_map[d]["pool"][environment.lower()]
+                    }
                 }
                 for d in ordered_domains
             ]
-            json_data["batchAccountScaleDown"] = [
+
+            # Create new kvSync structure
+            json_data["kvSync"] = [
                 {
-                    "resourceGroup": rg_map[d][environment.lower()],
-                    "batch": batch_map[d][environment.lower()],
-                    "pool": batch_map[d]["pool"][environment.lower()]
+                    "from": {
+                        "resourceGroup": rg_map[d][environment.lower()],
+                        "kv": kv_map[d][environment.lower()]
+                    },
+                    "to": {
+                        "resourceGroup": rg_map[d]["DR"],
+                        "kv": kv_map[d]["DR"]
+                    }
                 }
                 for d in ordered_domains
             ]
-            json_data["kvSyncFrom"] = [
+
+            # Create new ADFTrigger structure
+            json_data["ADFTrigger"] = [
                 {
-                    "resourceGroup": rg_map[d][environment.lower()],
-                    "kv": kv_map[d][environment.lower()]
-                }
-                for d in ordered_domains
-            ]
-            json_data["kvSyncTo"] = [
-                {
-                    "resourceGroup": rg_map[d]["DR"],
-                    "kv": kv_map[d]["DR"]
-                }
-                for d in ordered_domains
-            ]
-            json_data["ADFTriggerStop"] = [
-                {
-                    "resourceGroup": rg_map[d][environment.lower()],
-                    "adf": adf_map[d][environment.lower()]
-                }
-                for d in ordered_domains
-            ]
-            json_data["ADFTriggerStart"] = [
-                {
-                    "resourceGroup": rg_map[d]["DR"],
-                    "adf": adf_map[d]["DR"]
+                    "start": {
+                        "resourceGroup": rg_map[d]["DR"],
+                        "adf": adf_map[d]["DR"]
+                    },
+                    "stop": {
+                        "resourceGroup": rg_map[d][environment.lower()],
+                        "adf": adf_map[d][environment.lower()]
+                    }
                 }
                 for d in ordered_domains
             ]
@@ -226,31 +228,42 @@ def generate_json(
             }
 
         if azure:
-            json_data["batchAccountScaleUp"] = {
-                "resourceGroup": rg_map[domain]["DR"],
-                "batch": batch_map[domain]["DR"],
-                "pool": batch_map[domain]["pool"]["DR"]
+            # Create new batchAccountScale structure for single domain
+            json_data["batchAccountScale"] = {
+                "scaleUp": {
+                    "resourceGroup": rg_map[domain]["DR"],
+                    "batch": batch_map[domain]["DR"],
+                    "pool": batch_map[domain]["pool"]["DR"]
+                },
+                "scaleDown": {
+                    "resourceGroup": rg_map[domain][environment.lower()],
+                    "batch": batch_map[domain][environment.lower()],
+                    "pool": batch_map[domain]["pool"][environment.lower()]
+                }
             }
-            json_data["batchAccountScaleDown"] = {
-                "resourceGroup": rg_map[domain][environment.lower()],
-                "batch": batch_map[domain][environment.lower()],
-                "pool": batch_map[domain]["pool"][environment.lower()]
+
+            # Create new kvSync structure for single domain
+            json_data["kvSync"] = {
+                "from": {
+                    "resourceGroup": rg_map[domain][environment.lower()],
+                    "kv": kv_map[domain][environment.lower()]
+                },
+                "to": {
+                    "resourceGroup": rg_map[domain]["DR"],
+                    "kv": kv_map[domain]["DR"]
+                }
             }
-            json_data["kvSyncFrom"] = {
-                "resourceGroup": rg_map[domain][environment.lower()],
-                "kv": kv_map[domain][environment.lower()]
-            }
-            json_data["kvSyncTo"] = {
-                "resourceGroup": rg_map[domain]["DR"],
-                "kv": kv_map[domain]["DR"]
-            }
-            json_data["ADFTriggerStop"] = {
-                "resourceGroup": rg_map[domain][environment.lower()],
-                "adf": adf_map[domain][environment.lower()]
-            }
-            json_data["ADFTriggerStart"] = {
-                "resourceGroup": rg_map[domain]["DR"],
-                "adf": adf_map[domain]["DR"]
+
+            # Create new ADFTrigger structure for single domain
+            json_data["ADFTrigger"] = {
+                "start": {
+                    "resourceGroup": rg_map[domain]["DR"],
+                    "adf": adf_map[domain]["DR"]
+                },
+                "stop": {
+                    "resourceGroup": rg_map[domain][environment.lower()],
+                    "adf": adf_map[domain][environment.lower()]
+                }
             }
 
     json_data["config"] = {
