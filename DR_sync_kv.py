@@ -67,14 +67,24 @@ def sync_key_vaults(config_file: str, dry_run: bool = True) -> None:
                 
                 try:
                     # Get secret value from source vault
-                    secret_value = source_kv.get_secret(secret_name)
+                    source_value = source_kv.get_secret(secret_name)
+                    
+                    # Try to get the secret from target vault to compare
+                    try:
+                        target_value = target_kv.get_secret(secret_name)
+                        if source_value == target_value:
+                            print(f"Skipping {secret_name} - values are identical")
+                            continue
+                    except Exception:
+                        # If secret doesn't exist in target vault, continue with copying
+                        pass
                     
                     if dry_run:
                         print(f"What if: Would copy secret {secret_name} from {kv_config['from']['kv']} to {kv_config['to']['kv']}")
                         continue
                     
                     # Set secret in target vault
-                    target_kv.set_secret(secret_name, secret_value)
+                    target_kv.set_secret(secret_name, source_value)
                     
                 except Exception as e:
                     print(f"Error processing secret {secret_name}: {str(e)}")

@@ -6,6 +6,7 @@ from azure.keyvault.secrets import SecretClient
 from azure.keyvault.keys import KeyClient
 from azure.keyvault.certificates import CertificateClient
 from azure.mgmt.keyvault import KeyVaultManagementClient
+from azure.mgmt.resource.locks import ManagementLockClient
 import requests
 import time
 import json
@@ -29,7 +30,7 @@ class AzureResourceBase:
         self, 
         resource_group_name: str, 
         resource_name: str,
-        resource_type: Literal['adf', 'batch', 'keyvault'],
+        resource_type: Literal['adf', 'batch', 'keyvault', 'locks'],
         subscription_id: str = None
     ):
         """
@@ -77,8 +78,13 @@ class AzureResourceBase:
                 vault_url=f"https://{resource_name}.vault.azure.net",
                 credential=self.credential
             )
+        elif self.resource_type == 'locks':
+            self.lock_client = ManagementLockClient(
+                credential=self.credential,
+                subscription_id=self.subscription_id
+            )
         else:
-            raise ValueError(f"Unsupported resource type: {resource_type}. Must be 'adf', 'batch', or 'keyvault'")
+            raise ValueError(f"Unsupported resource type: {resource_type}. Must be 'adf', 'batch', 'keyvault', or 'locks'")
 
     def _get_token(self):
         """
@@ -630,4 +636,346 @@ class AzureKeyVault(AzureResourceBase):
             print(f"Error setting secret {secret_name}: {str(e)}")
             raise
 
- # %%
+class AzureResourceLock(AzureResourceBase):
+    def __init__(
+        self, 
+        resource_group_name: str,
+        subscription_id: str = None
+    ):
+        """
+        Initialize Azure Resource Locker operations.
+        
+        Args:
+            resource_group_name: Name of the resource group
+            subscription_id: Azure subscription ID. If not provided, will be retrieved from Azure CLI
+        """
+        super().__init__(
+            resource_group_name=resource_group_name,
+            resource_name=None,  # Not needed for lock operations
+            resource_type='locks',  # Custom type for lock operations
+            subscription_id=subscription_id
+        )
+        self.lock_client = ManagementLockClient(
+            credential=self.credential,
+            subscription_id=self.subscription_id
+        )
+        # Initialize lock objects
+        self.lock_objs = self.get_locks()
+        self.deleted = False
+
+    def get_locks(self) -> List:
+        """
+        Get all locks in the resource group.
+        
+        Returns:
+            List of lock objects, empty list if no locks exist
+        """
+        try:
+            all_locks = self.lock_client.management_locks.list_at_resource_group_level(
+                resource_group_name=self.resource_group_name
+            )
+            
+            # Convert ItemPaged to list
+            lock_list = list(all_locks)
+            
+            if not lock_list:
+                print(f"No locks found in resource group {self.resource_group_name}")
+            else:
+                print(f"Found {len(lock_list)} locks in resource group {self.resource_group_name}")
+            
+            return lock_list
+            
+        except Exception as e:
+            print(f"Error getting resource locks: {str(e)}")
+            raise
+
+    def release_locks(self) -> None:
+        """
+        Delete all locks in the resource group.
+        
+        Returns:
+            List of lock objects that were deleted
+        """
+        try:
+            if not self.lock_objs:
+                print("No locks to delete")
+                return
+
+            for lock in self.lock_objs:
+                self.lock_client.management_locks.delete_at_resource_group_level(
+                    self.resource_group_name, lock.name
+                )
+                print(f'Temporarily released lock: {lock.name}')
+
+            self.deleted = True
+        except Exception as e:
+            print(f"Error managing resource locks: {str(e)}")
+            raise
+
+    def recreate_locks(self) -> None:
+        """
+        Recreate locks in the resource group.
+        Only works if locks were previously deleted.
+        """
+        try:
+            if not self.lock_objs:
+                print("No locks to recreate")
+                return
+
+            if not self.deleted:
+                print("Locks were not deleted, skipping recreation")
+                return
+
+            for lock in self.lock_objs:
+                self.lock_client.management_locks.create_or_update_at_resource_group_level(
+                    resource_group_name=self.resource_group_name,
+                    lock_name=lock.name,
+                    parameters={
+                        'level': lock.level,
+                        'notes': lock.notes
+                    }
+                )
+                print(f'Reset lock: {lock.name}')
+                
+        except Exception as e:
+            print(f"Error recreating resource locks: {str(e)}")
+            raise
+
+    def create_lock(self, lock_name: str, level: str = "CanNotDelete", notes: str = None) -> None:
+        """
+        Create a new resource lock at the resource group level.
+        
+        Args:
+            lock_name: Name of the lock to create
+            level: Lock level, either "CanNotDelete" or "ReadOnly". Defaults to "CanNotDelete"
+            notes: Optional notes about the lock
+        """
+        try:
+            if level not in ["CanNotDelete", "ReadOnly"]:
+                raise ValueError("Lock level must be either 'CanNotDelete' or 'ReadOnly'")
+
+            # Check if lock already exists
+            for lock in self.lock_objs:
+                if lock.name == lock_name:
+                    print(f"Lock {lock_name} already exists")
+                    return
+
+            # Create the lock
+            self.lock_client.management_locks.create_or_update_at_resource_group_level(
+                resource_group_name=self.resource_group_name,
+                lock_name=lock_name,
+                parameters={
+                    'level': level,
+                    'notes': notes
+                }
+            )
+            print(f"Created lock: {lock_name} with level {level}")
+            
+            # Update local lock objects
+            self.lock_objs = self.get_locks()
+            
+        except Exception as e:
+            print(f"Error creating resource lock: {str(e)}")
+            raise
+
+class ADFTrigger(AzureResourceBase):
+    # Valid trigger types in Azure Data Factory
+    VALID_TRIGGER_TYPES = {
+        'TumblingWindowTrigger',
+        'ScheduleTrigger',
+    }
+
+    def list_triggers(self, trigger_type: str = None) -> List:
+        """
+        List all triggers in the Data Factory, optionally filtered by type.
+        By default, only shows Schedule and TumblingWindow triggers.
+        
+        Args:
+            trigger_type: Optional trigger type to filter by. Must be one of:
+                - TumblingWindowTrigger
+                - ScheduleTrigger
+            
+        Returns:
+            List of trigger objects, filtered by type if specified
+            
+        Raises:
+            ValueError: If an invalid trigger type is specified
+        """
+        try:
+            if trigger_type and trigger_type not in self.VALID_TRIGGER_TYPES:
+                raise ValueError(
+                    f"Invalid trigger type: {trigger_type}. "
+                    f"Must be one of: {', '.join(sorted(self.VALID_TRIGGER_TYPES))}"
+                )
+
+            print(f"Listing all triggers in the Data Factory: {self.resource_name}")
+            triggers = self.client.triggers.list_by_factory(
+                self.resource_group_name, 
+                self.resource_name
+            )
+            
+            # Convert ItemPaged to list and filter
+            trigger_list = list(triggers)
+            
+            # Filter by specific type if provided, otherwise only show schedule and tumbling
+            if trigger_type:
+                filtered_triggers = [
+                    trigger for trigger in trigger_list 
+                    if trigger.properties.type == trigger_type
+                ]
+                print(f"Found {len(filtered_triggers)} {trigger_type} triggers")
+                return filtered_triggers
+            else:
+                filtered_triggers = [
+                    trigger for trigger in trigger_list 
+                    if trigger.properties.type in self.VALID_TRIGGER_TYPES
+                ]
+                print(f"Found {len(filtered_triggers)} schedule/tumbling triggers")
+                return filtered_triggers
+            
+        except Exception as e:
+            print(f"Error listing triggers: {str(e)}")
+            raise
+
+    def manage_trigger(self, trigger_name: str, action: str) -> None:
+        """
+        Manage a specific trigger (start/stop).
+        
+        Args:
+            trigger_name: Name of the trigger to manage
+            action: Action to perform ('start' or 'stop')
+        """
+        try:
+            trigger_obj = self.client.triggers.get(
+                self.resource_group_name, 
+                self.resource_name, 
+                trigger_name
+            )
+            print(f"Current trigger state: {trigger_obj.properties.runtime_state}")
+
+            if action == "stop" and trigger_obj.properties.runtime_state == "Started":
+                print(f"Stopping trigger: {trigger_name}")
+                operation = self.client.triggers.begin_stop(
+                    self.resource_group_name, 
+                    self.resource_name, 
+                    trigger_name
+                )
+                operation.wait()
+                print(f"Trigger {trigger_name} stopped")
+            elif action == "start" and trigger_obj.properties.runtime_state == "Stopped":
+                print(f"Starting trigger: {trigger_name}")
+                operation = self.client.triggers.begin_start(
+                    self.resource_group_name, 
+                    self.resource_name, 
+                    trigger_name
+                )
+                operation.wait()
+                print(f"Trigger {trigger_name} started")
+            else:
+                print(f"Trigger {trigger_name} is already in the desired state, skipping {action}")
+                
+        except Exception as e:
+            print(f"Error managing trigger {trigger_name}: {str(e)}")
+            raise
+
+    def manage_all_triggers(self, action: str) -> None:
+        """
+        Manage all triggers in the Data Factory (start/stop).
+        
+        Args:
+            action: Action to perform ('start' or 'stop')
+        """
+        try:
+            print(f"Managing all triggers in Data Factory: {self.resource_name} with action: {action}")
+            triggers = self.list_triggers()
+            
+            for trigger in triggers:
+                print(f"Working on {trigger.name} under {self.resource_group_name}/{self.resource_name}...")
+                self.manage_trigger(trigger.name, action)
+                
+        except Exception as e:
+            print(f"Error managing all triggers: {str(e)}")
+            raise
+
+    def reset_tumbling_with_start_time(self, trigger_name: str, new_start_time: Union[str, datetime]) -> None:
+        """
+        Reset the start time of a tumbling window trigger by recreating it.
+        This is necessary because start time cannot be updated directly.
+        
+        Args:
+            trigger_name: Name of the trigger to reset
+            new_start_time: New start time as either:
+                - ISO 8601 format string (e.g., '2024-03-20T00:00:00Z')
+                - datetime object
+            
+        Raises:
+            ValueError: If the trigger is not a tumbling window trigger
+            ValueError: If the start time string is not in valid ISO 8601 format
+        """
+        try:
+            # Convert string to datetime if needed
+            if isinstance(new_start_time, str):
+                try:
+                    new_start_time = datetime.fromisoformat(new_start_time.replace('Z', '+00:00'))
+                except ValueError as e:
+                    raise ValueError(
+                        f"Invalid start time format. Must be ISO 8601 format (e.g., '2024-03-20T00:00:00Z'). Error: {str(e)}"
+                    )
+            
+            # Get the trigger details
+            trigger_obj = self.client.triggers.get(
+                self.resource_group_name,
+                self.resource_name,
+                trigger_name
+            )
+            
+            # Verify it's a tumbling window trigger
+            if trigger_obj.properties.type != 'TumblingWindowTrigger':
+                raise ValueError(
+                    f"Trigger {trigger_name} is not a tumbling window trigger. "
+                    f"Found type: {trigger_obj.properties.type}"
+                )
+            
+            # Store original state and properties
+            original_state = trigger_obj.properties.runtime_state
+            trigger_properties = trigger_obj.properties
+            
+            # Stop the trigger if it's running
+            if original_state == "Started":
+                print(f"Stopping trigger {trigger_name} before recreation...")
+                self.manage_trigger(trigger_name, "stop")
+            
+            # Delete the trigger
+            print(f"Deleting trigger {trigger_name}... temporarily")
+            self.client.triggers.delete(
+                self.resource_group_name,
+                self.resource_name,
+                trigger_name
+            )
+            
+            # Update the start time in the properties
+            trigger_properties.start_time = new_start_time
+            
+            # Recreate the trigger with updated start time
+            print(f"Recreating trigger {trigger_name} with new start time...")
+            self.client.triggers.create_or_update(
+                self.resource_group_name,
+                self.resource_name,
+                trigger_name,
+                trigger_obj
+            )
+            
+            # Restore original state if it was running
+            if original_state == "Started":
+                print(f"Restoring trigger {trigger_name} to running state...")
+                self.manage_trigger(trigger_name, "start")
+            
+            print(f"Successfully reset start time for trigger {trigger_name} to {new_start_time}")
+            
+        except Exception as e:
+            print(f"Error resetting trigger start time: {str(e)}")
+            raise
+        
+
+
+# %%
