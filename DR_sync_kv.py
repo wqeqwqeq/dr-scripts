@@ -4,24 +4,28 @@ import argparse
 from typing import List, Dict
 from AzHelper import AzureKeyVault
 
-def get_kv_sync_configs(file_path: str = "build.json") -> List[Dict]:
+def get_kv_sync_configs(file_path: str = "build.json") -> tuple[List[Dict], Dict]:
     """
-    Read build.json file and extract key vault sync configurations.
+    Read build.json file and extract key vault sync configurations and config data.
     
     Args:
         file_path: Path to the build.json file
         
     Returns:
-        List of key vault sync configurations
+        Tuple containing:
+        - List of key vault sync configurations
+        - Config data dictionary
     """
     try:
         with open(file_path, 'r') as f:
             data = json.load(f)
             
-        if not isinstance(data.get("kvSync"), list):
+        kv_sync = data.get("kvSync", [])
+        if not isinstance(kv_sync, list):
             # Handle single domain case
-            return [data["kvSync"]]
-        return data["kvSync"]
+            kv_sync = [kv_sync]
+            
+        return kv_sync, data.get("config", {})
     except Exception as e:
         print(f"Error reading or processing build.json: {str(e)}")
         raise
@@ -34,8 +38,12 @@ def sync_key_vaults(config_file: str, dry_run: bool = True) -> None:
         config_file: Path to the build.json configuration file
         dry_run: If True, only show what would be changed without making changes
     """
-    # Get key vault sync configurations
-    kv_configs = get_kv_sync_configs(config_file)
+    # Get key vault sync configurations and mode
+    kv_configs, config = get_kv_sync_configs(config_file)
+    
+    if config.get("mode") == "failback":
+        print("Skip syncing in failback mode")
+        return
     
     for kv_config in kv_configs:
         try:

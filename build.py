@@ -45,16 +45,6 @@ def create_maps() -> Dict[str, Dict[str, Dict[str, str]]]:
                 "DR": "DRpoolBatchAccounting"
             }
         },
-        "Retail": {
-            "qa": "qaBatchRetail",
-            "prod": "prodBatchRetail",
-            "DR": "DRBatchRetail",
-            "pool": {
-                "qa": "qapoolBatchRetail",
-                "prod": "prodpoolBatchRetail",
-                "DR": "DRpoolBatchRetail"
-            }
-        },
         "Nonedw": {
             "qa": "qaBatchNonedw",
             "prod": "prodBatchNonedw",
@@ -82,7 +72,6 @@ def create_maps() -> Dict[str, Dict[str, Dict[str, str]]]:
         "Finance": {"qa": "qaStorageFinance", "prod": "prodStorageFinance", "DR": "DRStorageFinance"},
         "Customer": {"qa": "qaStorageCustomer", "prod": "prodStorageCustomer", "DR": "DRStorageCustomer"},
         "Accounting": {"qa": "qaStorageAccounting", "prod": "prodStorageAccounting", "DR": "DRStorageAccounting"},
-        "Retail": {"qa": "qaStorageRetail", "prod": "prodStorageRetail", "DR": "DRStorageRetail"},
         "Nonedw": {"qa": "qaStorageNonedw", "prod": "prodStorageNonedw", "DR": "DRStorageNonedw"},
         "Associates": {"qa": "qaStorageAssociates", "prod": "prodStorageAssociates", "DR": "DRStorageAssociates"}
     }
@@ -92,7 +81,6 @@ def create_maps() -> Dict[str, Dict[str, Dict[str, str]]]:
         "Finance": {"qa": "qaKvFinance", "prod": "prodKvFinance", "DR": "DRKvFinance"},
         "Customer": {"qa": "qaKvCustomer", "prod": "prodKvCustomer", "DR": "DRKvCustomer"},
         "Accounting": {"qa": "qaKvAccounting", "prod": "prodKvAccounting", "DR": "DRKvAccounting"},
-        "Retail": {"qa": "qaKvRetail", "prod": "prodKvRetail", "DR": "DRKvRetail"},
         "Nonedw": {"qa": "qaKvNonedw", "prod": "prodKvNonedw", "DR": "DRKvNonedw"},
         "Associates": {"qa": "qaKvAssociates", "prod": "prodKvAssociates", "DR": "DRKvAssociates"}
     }
@@ -146,7 +134,8 @@ def generate_json(
     rg_map = maps["rg_map"]
 
     json_data = {}
-    ordered_domains = ["Sales", "Finance", "Customer", "Accounting", "Retail", "Nonedw", "Associates"]
+    ordered_domains = ["Sales", "Finance", "Customer", "Accounting", "Nonedw", "Associates"]
+    adf_domains = ordered_domains + ["Retail"]  # Include Retail only for ADF operations
 
     if domain == "All":
         if storage:
@@ -159,33 +148,65 @@ def generate_json(
             ]
 
         if snowflake:
-            json_data["ADFLinkedServiceFQDN"] = [
-                {
-                    "resourceGroup": rg_map[d]["DR"] if azure else rg_map[d][environment.lower()],
-                    "adf": adf_map[d]["DR"] if azure else adf_map[d][environment.lower()]
-                }
-                for d in ordered_domains
-            ]
+            # azure not fail, failover the fqdn in east ADF
+            # azure fail, failover the fqdn in DR ADF
+            # failback only the fqdn in east ADF
+            if mode == "failover":
+                json_data["ADFLinkedServiceFQDN"] = [
+                    {
+                        "resourceGroup": rg_map[d]["DR"] if azure else rg_map[d][environment.lower()],
+                        "adf": adf_map[d]["DR"] if azure else adf_map[d][environment.lower()]
+                    }
+                    for d in adf_domains  # Use adf_domains to include Retail
+                ]
+            else:
+                json_data["ADFLinkedServiceFQDN"] = [
+                    {
+                        "resourceGroup": rg_map[d][environment.lower()],
+                        "adf": adf_map[d][environment.lower()]
+                    }
+                    for d in adf_domains  # Use adf_domains to include Retail
+                ]
 
         if azure:
             # Create new batchAccountScale structure
+            # failover scale up DR, scale down east
+            # failback scale up east, scale down DR
             json_data["batchAccountScale"] = [
                 {
                     "scaleUp": {
-                        "resourceGroup": rg_map[d]["DR"],
-                        "batch": batch_map[d]["DR"],
-                        "pool": batch_map[d]["pool"]["DR"]
+                        "resourceGroup": rg_map[d]["DR"] if mode == "failover" else rg_map[d][environment.lower()],
+                        "batch": batch_map[d]["DR"] if mode == "failover" else batch_map[d][environment.lower()],
+                        "pool": batch_map[d]["pool"]["DR"] if mode == "failover" else batch_map[d]["pool"][environment.lower()]
                     },
                     "scaleDown": {
-                        "resourceGroup": rg_map[d][environment.lower()],
-                        "batch": batch_map[d][environment.lower()],
-                        "pool": batch_map[d]["pool"][environment.lower()]
+                        "resourceGroup": rg_map[d][environment.lower()] if mode == "failover" else rg_map[d]["DR"],
+                        "batch": batch_map[d][environment.lower()] if mode == "failover" else batch_map[d]["DR"],
+                        "pool": batch_map[d]["pool"][environment.lower()] if mode == "failover" else batch_map[d]["pool"]["DR"]
                     }
                 }
                 for d in ordered_domains
             ]
 
+            # Create new ADFTrigger structure
+            # failover start DR, stop east
+            # failback start east, stop DR
+            json_data["ADFTrigger"] = [
+                {
+                    "start": {
+                        "resourceGroup": rg_map[d]["DR"] if mode == "failover" else rg_map[d][environment.lower()],
+                        "adf": adf_map[d]["DR"] if mode == "failover" else adf_map[d][environment.lower()]
+                    },
+                    "stop": {
+                        "resourceGroup": rg_map[d][environment.lower()] if mode == "failover" else rg_map[d]["DR"],
+                        "adf": adf_map[d][environment.lower()] if mode == "failover" else adf_map[d]["DR"]
+                    }
+                }
+                for d in adf_domains  # Use adf_domains to include Retail
+            ]
+
             # Create new kvSync structure
+            # failover and failback are the same, failback will not call kvSync
             json_data["kvSync"] = [
                 {
                     "from": {
@@ -199,22 +220,10 @@ def generate_json(
                 }
                 for d in ordered_domains
             ]
-
-            # Create new ADFTrigger structure
-            json_data["ADFTrigger"] = [
-                {
-                    "start": {
-                        "resourceGroup": rg_map[d]["DR"],
-                        "adf": adf_map[d]["DR"]
-                    },
-                    "stop": {
-                        "resourceGroup": rg_map[d][environment.lower()],
-                        "adf": adf_map[d][environment.lower()]
-                    }
-                }
-                for d in ordered_domains
-            ]
     else:
+        if domain == "Retail":
+            raise ValueError("Retail domain can only be used in 'All' mode for ADF operations")
+
         if storage:
             json_data["storageGRS"] = {
                 "resourceGroup": rg_map[domain][environment.lower()],
@@ -222,27 +231,53 @@ def generate_json(
             }
 
         if snowflake:
-            json_data["ADFLinkedServiceFQDN"] = {
-                "resourceGroup": rg_map[domain]["DR"] if azure else rg_map[domain][environment.lower()],
-                "adf": adf_map[domain]["DR"] if azure else adf_map[domain][environment.lower()]
-            }
+            # azure not fail, failover the fqdn in east ADF
+            # azure fail, failover the fqdn in DR ADF
+            # failback only the fqdn in east ADF
+            if mode == "failover":
+                json_data["ADFLinkedServiceFQDN"] = {
+                    "resourceGroup": rg_map[domain]["DR"] if azure else rg_map[domain][environment.lower()],
+                    "adf": adf_map[domain]["DR"] if azure else adf_map[domain][environment.lower()]
+                }
+            else:
+                json_data["ADFLinkedServiceFQDN"] = {
+                    "resourceGroup": rg_map[domain][environment.lower()],
+                    "adf": adf_map[domain][environment.lower()]
+                }
 
         if azure:
             # Create new batchAccountScale structure for single domain
+            # failover scale up DR, scale down east
+            # failback scale up east, scale down DR
             json_data["batchAccountScale"] = {
                 "scaleUp": {
-                    "resourceGroup": rg_map[domain]["DR"],
-                    "batch": batch_map[domain]["DR"],
-                    "pool": batch_map[domain]["pool"]["DR"]
+                    "resourceGroup": rg_map[domain]["DR"] if mode == "failover" else rg_map[domain][environment.lower()],
+                    "batch": batch_map[domain]["DR"] if mode == "failover" else batch_map[domain][environment.lower()],
+                    "pool": batch_map[domain]["pool"]["DR"] if mode == "failover" else batch_map[domain]["pool"][environment.lower()]
                 },
                 "scaleDown": {
-                    "resourceGroup": rg_map[domain][environment.lower()],
-                    "batch": batch_map[domain][environment.lower()],
-                    "pool": batch_map[domain]["pool"][environment.lower()]
+                    "resourceGroup": rg_map[domain][environment.lower()] if mode == "failover" else rg_map[domain]["DR"],
+                    "batch": batch_map[domain][environment.lower()] if mode == "failover" else batch_map[domain]["DR"],
+                    "pool": batch_map[domain]["pool"][environment.lower()] if mode == "failover" else batch_map[domain]["pool"]["DR"]
+                }
+            }
+
+            # Create new ADFTrigger structure for single domain
+            # failover start DR, stop east
+            # failback start east, stop DR
+            json_data["ADFTrigger"] = {
+                "start": {
+                    "resourceGroup": rg_map[domain]["DR"] if mode == "failover" else rg_map[domain][environment.lower()],
+                    "adf": adf_map[domain]["DR"] if mode == "failover" else adf_map[domain][environment.lower()]
+                },
+                "stop": {
+                    "resourceGroup": rg_map[domain][environment.lower()] if mode == "failover" else rg_map[domain]["DR"],
+                    "adf": adf_map[domain][environment.lower()] if mode == "failover" else adf_map[domain]["DR"]
                 }
             }
 
             # Create new kvSync structure for single domain
+            # failover and failback are the same, failback will not call kvSync
             json_data["kvSync"] = {
                 "from": {
                     "resourceGroup": rg_map[domain][environment.lower()],
@@ -251,18 +286,6 @@ def generate_json(
                 "to": {
                     "resourceGroup": rg_map[domain]["DR"],
                     "kv": kv_map[domain]["DR"]
-                }
-            }
-
-            # Create new ADFTrigger structure for single domain
-            json_data["ADFTrigger"] = {
-                "start": {
-                    "resourceGroup": rg_map[domain]["DR"],
-                    "adf": adf_map[domain]["DR"]
-                },
-                "stop": {
-                    "resourceGroup": rg_map[domain][environment.lower()],
-                    "adf": adf_map[domain][environment.lower()]
                 }
             }
 
@@ -287,7 +310,7 @@ def main():
                       help='Include Snowflake configuration (True/False)')
     parser.add_argument('--azure', type=str, choices=['True', 'False'], default='True',
                       help='Include Azure configuration (True/False)')
-    parser.add_argument('--domain', choices=['All', 'Sales', 'Finance', 'Customer', 'Accounting', 'Retail', 'Nonedw', 'Associates'],
+    parser.add_argument('--domain', choices=['All', 'Sales', 'Finance', 'Customer', 'Accounting', 'Nonedw', 'Associates'],
                       default='Sales', help='Target domain (default: Sales)')
     parser.add_argument('--environment', choices=['qa', 'prod'], default='qa',
                       help='Target environment (default: qa)')

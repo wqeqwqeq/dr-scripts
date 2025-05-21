@@ -1,64 +1,4 @@
 {
-  "storageGRS": [
-    {
-      "resourceGroup": "qaSalesRG",
-      "storage": "qaStorageSales"
-    },
-    {
-      "resourceGroup": "qaFinanceRG",
-      "storage": "qaStorageFinance"
-    },
-    {
-      "resourceGroup": "qaCustomerRG",
-      "storage": "qaStorageCustomer"
-    },
-    {
-      "resourceGroup": "qaAccountingRG",
-      "storage": "qaStorageAccounting"
-    },
-    {
-      "resourceGroup": "qaRetailRG",
-      "storage": "qaStorageRetail"
-    },
-    {
-      "resourceGroup": "qaNonedwRG",
-      "storage": "qaStorageNonedw"
-    },
-    {
-      "resourceGroup": "qaAssociatesRG",
-      "storage": "qaStorageAssociates"
-    }
-  ],
-  "ADFLinkedServiceFQDN": [
-    {
-      "resourceGroup": "DRSalesRG",
-      "adf": "DRSalesADF"
-    },
-    {
-      "resourceGroup": "DRFinanceRG",
-      "adf": "DRFinanceADF"
-    },
-    {
-      "resourceGroup": "DRCustomerRG",
-      "adf": "DRCustomerADF"
-    },
-    {
-      "resourceGroup": "DRAccountingRG",
-      "adf": "DRAccountingADF"
-    },
-    {
-      "resourceGroup": "DRRetailRG",
-      "adf": "DRRetailADF"
-    },
-    {
-      "resourceGroup": "DRNonedwRG",
-      "adf": "DRNonedwADF"
-    },
-    {
-      "resourceGroup": "DRAssociatesRG",
-      "adf": "DRAssociatesADF"
-    }
-  ],
   "batchAccountScale": [
     {
       "scaleUp": {
@@ -110,18 +50,6 @@
     },
     {
       "scaleUp": {
-        "resourceGroup": "DRRetailRG",
-        "batch": "DRBatchRetail",
-        "pool": "DRpoolBatchRetail"
-      },
-      "scaleDown": {
-        "resourceGroup": "qaRetailRG",
-        "batch": "qaBatchRetail",
-        "pool": "qapoolBatchRetail"
-      }
-    },
-    {
-      "scaleUp": {
         "resourceGroup": "DRNonedwRG",
         "batch": "DRBatchNonedw",
         "pool": "DRpoolBatchNonedw"
@@ -142,18 +70,6 @@
         "resourceGroup": "qaAssociatesRG",
         "batch": "qaBatchAssociates",
         "pool": "qapoolBatchAssociates"
-      }
-    }
-  ],
-  "kvSync": [
-    {
-      "from": {
-        "resourceGroup": "adf",
-        "kv": "stanleyakvprod"
-      },
-      "to": {
-        "resourceGroup": "adf",
-        "kv": "stanleyakvdr"
       }
     }
   ],
@@ -200,16 +116,6 @@
     },
     {
       "start": {
-        "resourceGroup": "DRRetailRG",
-        "adf": "DRRetailADF"
-      },
-      "stop": {
-        "resourceGroup": "qaRetailRG",
-        "adf": "qaRetailADF"
-      }
-    },
-    {
-      "start": {
         "resourceGroup": "DRNonedwRG",
         "adf": "DRNonedwADF"
       },
@@ -227,12 +133,84 @@
         "resourceGroup": "qaAssociatesRG",
         "adf": "qaAssociatesADF"
       }
+    },
+    {
+      "start": {
+        "resourceGroup": "DRRetailRG",
+        "adf": "DRRetailADF"
+      },
+      "stop": {
+        "resourceGroup": "qaRetailRG",
+        "adf": "qaRetailADF"
+      }
+    }
+  ],
+  "kvSync": [
+    {
+      "from": {
+        "resourceGroup": "qaSalesRG",
+        "kv": "qaKvSales"
+      },
+      "to": {
+        "resourceGroup": "DRSalesRG",
+        "kv": "DRKvSales"
+      }
+    },
+    {
+      "from": {
+        "resourceGroup": "qaFinanceRG",
+        "kv": "qaKvFinance"
+      },
+      "to": {
+        "resourceGroup": "DRFinanceRG",
+        "kv": "DRKvFinance"
+      }
+    },
+    {
+      "from": {
+        "resourceGroup": "qaCustomerRG",
+        "kv": "qaKvCustomer"
+      },
+      "to": {
+        "resourceGroup": "DRCustomerRG",
+        "kv": "DRKvCustomer"
+      }
+    },
+    {
+      "from": {
+        "resourceGroup": "qaAccountingRG",
+        "kv": "qaKvAccounting"
+      },
+      "to": {
+        "resourceGroup": "DRAccountingRG",
+        "kv": "DRKvAccounting"
+      }
+    },
+    {
+      "from": {
+        "resourceGroup": "qaNonedwRG",
+        "kv": "qaKvNonedw"
+      },
+      "to": {
+        "resourceGroup": "DRNonedwRG",
+        "kv": "DRKvNonedw"
+      }
+    },
+    {
+      "from": {
+        "resourceGroup": "qaAssociatesRG",
+        "kv": "qaKvAssociates"
+      },
+      "to": {
+        "resourceGroup": "DRAssociatesRG",
+        "kv": "DRKvAssociates"
+      }
     }
   ],
   "config": {
     "mode": "failover",
-    "storage": true,
-    "snowflake": true,
+    "storage": false,
+    "snowflake": false,
     "azure": true,
     "domain": "All",
     "environment": "qa"
