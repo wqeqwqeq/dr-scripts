@@ -1,4 +1,12 @@
 {
+  "config": {
+    "mode": "failover",
+    "storage": false,
+    "snowflake": false,
+    "azure": true,
+    "domain": "All",
+    "environment": "qa"
+  },
   "batchAccountScale": [
     {
       "scaleUp": {
@@ -206,13 +214,5 @@
         "kv": "DRKvAssociates"
       }
     }
-  ],
-  "config": {
-    "mode": "failover",
-    "storage": false,
-    "snowflake": false,
-    "azure": true,
-    "domain": "All",
-    "environment": "qa"
-  }
+  ]
 }

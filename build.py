@@ -134,6 +134,16 @@ def generate_json(
     rg_map = maps["rg_map"]
 
     json_data = {}
+    # Add config first
+    json_data["config"] = {
+        "mode": mode,
+        "storage": storage,
+        "snowflake": snowflake,
+        "azure": azure,
+        "domain": domain,
+        "environment": environment
+    }
+
     ordered_domains = ["Sales", "Finance", "Customer", "Accounting", "Nonedw", "Associates"]
     adf_domains = ordered_domains + ["Retail"]  # Include Retail only for ADF operations
 
@@ -288,15 +298,6 @@ def generate_json(
                     "kv": kv_map[domain]["DR"]
                 }
             }
-
-    json_data["config"] = {
-        "mode": mode,
-        "storage": storage,
-        "snowflake": snowflake,
-        "azure": azure,
-        "domain": domain,
-        "environment": environment
-    }
 
     return json_data
 
