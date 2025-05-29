@@ -352,28 +352,39 @@ class ADFManagedPrivateEndpoint(AzureResourceBase):
     ):
         """
         Update the FQDN in a managed private endpoint while preserving other properties.
+        Uses REST API directly instead of SDK client.
         """
         try:
+            # Get existing endpoint to preserve properties
             existing_endpoint = self.get_managed_private_endpoint(
                 managed_private_endpoint_name=managed_private_endpoint_name,
                 managed_vnet_name=managed_vnet_name
             )
             
-            response = self.client.managed_private_endpoints.create_or_update(
-                resource_group_name=self.resource_group_name,
-                factory_name=self.resource_name,
-                managed_virtual_network_name=managed_vnet_name,
-                managed_private_endpoint_name=managed_private_endpoint_name,
-                managed_private_endpoint={
-                    "properties": {
-                        "fqdns": fqdns,
-                        "groupId": existing_endpoint['properties']['groupId'],
-                        "privateLinkResourceId": existing_endpoint['properties']['privateLinkResourceId']
-                    }
-                },
-            )
+            # Construct the REST API URL
+            url = f"https://management.azure.com/subscriptions/{self.subscription_id}/resourceGroups/{self.resource_group_name}/providers/Microsoft.DataFactory/factories/{self.resource_name}/managedVirtualNetworks/{managed_vnet_name}/managedPrivateEndpoints/{managed_private_endpoint_name}?api-version=2018-06-01"
+            
+            # Prepare the request body
+            body = {
+                "properties": {
+                    "fqdns": fqdns,
+                    "groupId": existing_endpoint['properties']['groupId'],
+                    "privateLinkResourceId": existing_endpoint['properties']['privateLinkResourceId']
+                }
+            }
+            
+            # Make the PUT request
+            response = self._get_token()
+            headers = {
+                "Authorization": f"Bearer {response}",
+                "Content-Type": "application/json"
+            }
+            
+            response = requests.put(url, headers=headers, json=body)
+            response.raise_for_status()
+            
             print(f"Successfully updated managed private endpoint: {managed_private_endpoint_name}")
-            return response
+            return response.json()
         except Exception as e:
             print(f"Error updating managed private endpoint: {str(e)}")
             raise
