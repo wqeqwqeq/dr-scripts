@@ -45,7 +45,8 @@ def run_connectivity_tests(config_file: str, parameters: Dict = None) -> None:
     # Track results across all ADFs
     all_results = {}
 
-    def process_adf(adf_config):
+    # Process each ADF
+    for adf_config in adf_configs:
         resource_group = adf_config['resourceGroup']
         factory_name = adf_config['adf']
         
@@ -68,6 +69,13 @@ def run_connectivity_tests(config_file: str, parameters: Dict = None) -> None:
                 parameters=parameters
             )
             
+            # Store result for this ADF
+            all_results[f"{resource_group}/{factory_name}"] = {
+                'status': 'success',
+                'run_id': pipeline_runner.run_id,
+                'activity_result': activity_result
+            }
+            
             # Print summary for this ADF
             print(f"\n Connectivity test completed successfully")
             print(f"Run ID: {pipeline_runner.run_id}")
@@ -77,27 +85,13 @@ def run_connectivity_tests(config_file: str, parameters: Dict = None) -> None:
             if 'output' in activity_result:
                 print(f"Activity Output: {json.dumps(activity_result['output'], indent=2)}")
             
-            return f"{resource_group}/{factory_name}", {
-                'status': 'success',
-                'run_id': pipeline_runner.run_id,
-                'activity_result': activity_result
-            }
-            
         except Exception as e:
             print(f" Error running connectivity test in {factory_name}: {str(e)}")
-            return f"{resource_group}/{factory_name}", {
+            all_results[f"{resource_group}/{factory_name}"] = {
                 'status': 'error',
                 'error': str(e),
                 'run_id': getattr(pipeline_runner, 'run_id', None)
             }
-
-    # Process ADFs in parallel
-    with ThreadPoolExecutor() as executor:
-        futures = [executor.submit(process_adf, adf_config) for adf_config in adf_configs]
-        
-        for future in as_completed(futures):
-            adf_key, result = future.result()
-            all_results[adf_key] = result
     
     # Print overall summary
     print("\n" + "=" * 80)
