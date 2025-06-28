@@ -3,18 +3,10 @@ from azure.identity import DefaultAzureCredential
 from azure.mgmt.datafactory import DataFactoryManagementClient
 from azure.mgmt.batch import BatchManagementClient
 from azure.keyvault.secrets import SecretClient
-from azure.keyvault.keys import KeyClient
-from azure.keyvault.certificates import CertificateClient
-from azure.mgmt.keyvault import KeyVaultManagementClient
 from azure.mgmt.resource.locks import ManagementLockClient
-import requests
-import time
-import json
-import re
-import tempfile
-import os
+import requests, time, json, re, tempfile, os
 from datetime import datetime, timedelta
-from typing import List, Dict, Union, Literal, Tuple
+from typing import List, Dict, Union, Literal
 from subprocess import PIPE, run
 
 
@@ -33,7 +25,7 @@ class AzureResourceBase:
     ):
         """
         Base class for Azure resource operations.
-        
+
         Args:
             resource_group_name: Name of the resource group
             resource_name: Name of the resource (ADF factory, Batch account, or Key Vault)
@@ -51,31 +43,23 @@ class AzureResourceBase:
         # Initialize appropriate client based on resource type
         if self.resource_type == "adf":
             self.client = DataFactoryManagementClient(
-                credential=self.credential, subscription_id=self.subscription_id
+                credential=self.credential,
+                subscription_id=self.subscription_id,
             )
         elif self.resource_type == "batch":
             self.client = BatchManagementClient(
-                credential=self.credential, subscription_id=self.subscription_id
+                credential=self.credential,
+                subscription_id=self.subscription_id,
             )
         elif self.resource_type == "keyvault":
-            self.kv_client = KeyVaultManagementClient(
-                credential=self.credential, subscription_id=self.subscription_id
-            )
             self.secret_client = SecretClient(
-                vault_url=f"https://{resource_name}.vault.azure.net",
-                credential=self.credential,
-            )
-            self.key_client = KeyClient(
-                vault_url=f"https://{resource_name}.vault.azure.net",
-                credential=self.credential,
-            )
-            self.certificate_client = CertificateClient(
                 vault_url=f"https://{resource_name}.vault.azure.net",
                 credential=self.credential,
             )
         elif self.resource_type == "locks":
             self.lock_client = ManagementLockClient(
-                credential=self.credential, subscription_id=self.subscription_id
+                credential=self.credential,
+                subscription_id=self.subscription_id,
             )
         else:
             raise ValueError(
@@ -126,7 +110,11 @@ class AzureResourceBase:
     def run_cmd(msg):
         """Run a shell command and return the result"""
         return run(
-            args=msg, stdout=PIPE, stderr=PIPE, universal_newlines=True, shell=True
+            args=msg,
+            stdout=PIPE,
+            stderr=PIPE,
+            universal_newlines=True,
+            shell=True,
         )
 
 
@@ -223,7 +211,7 @@ class ADFLinkedServices(AzureResourceBase):
             # Check if it's a Snowflake service
             service_type = linked_service.get("properties", {}).get("type")
             print(
-                f"Updating {service_type} Linked Service {linked_service_name} from {old_fqdn} to {new_fqdn}"
+                f"\nUpdating {service_type} Linked Service {linked_service_name} from {old_fqdn} to {new_fqdn}"
             )
 
             # Update the connection string based on Snowflake version
@@ -233,7 +221,9 @@ class ADFLinkedServices(AzureResourceBase):
                     "connectionString"
                 ]
                 new_connection_string = re.sub(
-                    f"(?<=://){re.escape(old_fqdn)}(?=\.)", new_fqdn, connection_string
+                    f"(?<=://){re.escape(old_fqdn)}(?=\.)",
+                    new_fqdn,
+                    connection_string,
                 )
                 # Check if the regex found a match, no replacement happened
                 if new_connection_string == connection_string:
@@ -252,17 +242,19 @@ class ADFLinkedServices(AzureResourceBase):
                     "accountIdentifier"
                 ]
                 new_identifier = re.sub(
-                    f"(?<=://){re.escape(old_fqdn)}(?=\.)", new_fqdn, current_identifier
+                    f"(?<=://){re.escape(old_fqdn)}(?=\.)",
+                    new_fqdn,
+                    current_identifier,
                 )
                 # Check if the regex found a match, no replacement happened
-                if new_identifier == current_identifier:
+                if new_fqdn == current_identifier:
                     print(
                         f"Warning: Could not find exact match for '{old_fqdn}' in account identifier"
                     )
                     return
                 linked_service["properties"]["typeProperties"][
                     "accountIdentifier"
-                ] = new_identifier
+                ] = new_fqdn
 
             if dry_run:
                 print(f"What if: Would update linked service {linked_service_name}")
@@ -331,7 +323,9 @@ class ADFLinkedServices(AzureResourceBase):
 
 class ADFManagedPrivateEndpoint(AzureResourceBase):
     def get_managed_private_endpoint(
-        self, managed_private_endpoint_name: str, managed_vnet_name: str = "default"
+        self,
+        managed_private_endpoint_name: str,
+        managed_vnet_name: str = "default",
     ) -> Dict:
         """
         Get details of a managed private endpoint in Azure Data Factory.
@@ -353,43 +347,32 @@ class ADFManagedPrivateEndpoint(AzureResourceBase):
     ):
         """
         Update the FQDN in a managed private endpoint while preserving other properties.
-        Uses REST API directly instead of SDK client.
         """
         try:
-            # Get existing endpoint to preserve properties
             existing_endpoint = self.get_managed_private_endpoint(
                 managed_private_endpoint_name=managed_private_endpoint_name,
                 managed_vnet_name=managed_vnet_name,
             )
 
-            # Construct the REST API URL
-            url = f"https://management.azure.com/subscriptions/{self.subscription_id}/resourceGroups/{self.resource_group_name}/providers/Microsoft.DataFactory/factories/{self.resource_name}/managedVirtualNetworks/{managed_vnet_name}/managedPrivateEndpoints/{managed_private_endpoint_name}?api-version=2018-06-01"
-
-            # Prepare the request body
-            body = {
-                "properties": {
-                    "fqdns": fqdns,
-                    "groupId": existing_endpoint["properties"]["groupId"],
-                    "privateLinkResourceId": existing_endpoint["properties"][
-                        "privateLinkResourceId"
-                    ],
-                }
-            }
-
-            # Make the PUT request
-            response = self._get_token()
-            headers = {
-                "Authorization": f"Bearer {response}",
-                "Content-Type": "application/json",
-            }
-
-            response = requests.put(url, headers=headers, json=body)
-            response.raise_for_status()
-
+            response = self.client.managed_private_endpoints.create_or_update(
+                resource_group_name=self.resource_group_name,
+                factory_name=self.resource_name,
+                managed_virtual_network_name=managed_vnet_name,
+                managed_private_endpoint_name=managed_private_endpoint_name,
+                managed_private_endpoint={
+                    "properties": {
+                        "fqdns": fqdns,
+                        "groupId": existing_endpoint["properties"]["group_id"],
+                        "privateLinkResourceId": existing_endpoint["properties"][
+                            "private_link_resource_id"
+                        ],
+                    }
+                },
+            )
             print(
                 f"Successfully updated managed private endpoint: {managed_private_endpoint_name}"
             )
-            return response.json()
+            return response
         except Exception as e:
             print(f"Error updating managed private endpoint: {str(e)}")
             raise
@@ -511,7 +494,7 @@ class AzureBatchPool(AzureResourceBase):
     ):
         """
         Initialize Azure Batch Pool operations.
-        
+
         Args:
             resource_group_name: Name of the resource group
             resource_name: Name of the batch account
@@ -529,7 +512,7 @@ class AzureBatchPool(AzureResourceBase):
     def get_pool_config(self) -> Dict:
         """
         Get the current configuration of the batch pool.
-        
+
         Returns:
             Dict containing the pool configuration
         """
@@ -547,11 +530,11 @@ class AzureBatchPool(AzureResourceBase):
     def scale_pool_nodes(self, target_nodes: int, dry_run: bool = True) -> Dict:
         """
         Scale the number of nodes in the batch pool.
-        
+
         Args:
             target_nodes: Target number of nodes (0 or positive integer)
             dry_run: If True, only show what would be changed without making changes
-            
+
         Returns:
             Dict containing the updated pool configuration
         """
@@ -609,10 +592,10 @@ class AzureKeyVault(AzureResourceBase):
     def get_secret(self, secret_name: str) -> str:
         """
         Get a secret from the key vault.
-        
+
         Args:
             secret_name: Name of the secret to retrieve
-            
+
         Returns:
             The secret value as a string
         """
@@ -626,7 +609,7 @@ class AzureKeyVault(AzureResourceBase):
     def list_secrets(self) -> List[Dict]:
         """
         List all secrets in the current key vault.
-        
+
         Returns:
             List of dictionaries containing secret properties (name, created_on, updated_on, enabled)
         """
@@ -649,7 +632,7 @@ class AzureKeyVault(AzureResourceBase):
     def set_secret(self, secret_name: str, secret_value: str) -> None:
         """
         Set a secret in the key vault.
-        
+
         Args:
             secret_name: Name of the secret to set
             secret_value: Value of the secret to set
@@ -668,7 +651,7 @@ class AzureResourceLock(AzureResourceBase):
     def __init__(self, resource_group_name: str, subscription_id: str = None):
         """
         Initialize Azure Resource Locker operations.
-        
+
         Args:
             resource_group_name: Name of the resource group
             subscription_id: Azure subscription ID. If not provided, will be retrieved from Azure CLI
@@ -689,7 +672,7 @@ class AzureResourceLock(AzureResourceBase):
     def get_locks(self) -> List:
         """
         Get all locks in the resource group.
-        
+
         Returns:
             List of lock objects, empty list if no locks exist
         """
@@ -717,7 +700,7 @@ class AzureResourceLock(AzureResourceBase):
     def release_locks(self) -> None:
         """
         Delete all locks in the resource group.
-        
+
         Returns:
             List of lock objects that were deleted
         """
@@ -768,7 +751,7 @@ class AzureResourceLock(AzureResourceBase):
     ) -> None:
         """
         Create a new resource lock at the resource group level.
-        
+
         Args:
             lock_name: Name of the lock to create
             level: Lock level, either "CanNotDelete" or "ReadOnly". Defaults to "CanNotDelete"
@@ -813,15 +796,15 @@ class ADFTrigger(AzureResourceBase):
         """
         List all triggers in the Data Factory, optionally filtered by type.
         By default, only shows Schedule and TumblingWindow triggers.
-        
+
         Args:
             trigger_type: Optional trigger type to filter by. Must be one of:
                 - TumblingWindowTrigger
                 - ScheduleTrigger
-            
+
         Returns:
             List of trigger objects, filtered by type if specified
-            
+
         Raises:
             ValueError: If an invalid trigger type is specified
         """
@@ -865,7 +848,7 @@ class ADFTrigger(AzureResourceBase):
     def manage_trigger(self, trigger_name: str, action: str) -> None:
         """
         Manage a specific trigger (start/stop).
-        
+
         Args:
             trigger_name: Name of the trigger to manage
             action: Action to perform ('start' or 'stop')
@@ -904,7 +887,7 @@ class ADFTrigger(AzureResourceBase):
     def manage_all_triggers(self, action: str) -> None:
         """
         Manage all triggers in the Data Factory (start/stop).
-        
+
         Args:
             action: Action to perform ('start' or 'stop')
         """
@@ -930,13 +913,13 @@ class ADFTrigger(AzureResourceBase):
         """
         Reset the start time of a tumbling window trigger by recreating it.
         This is necessary because start time cannot be updated directly.
-        
+
         Args:
             trigger_name: Name of the trigger to reset
             new_start_time: New start time as either:
                 - ISO 8601 format string (e.g., '2024-03-20T00:00:00Z')
                 - datetime object
-            
+
         Raises:
             ValueError: If the trigger is not a tumbling window trigger
             ValueError: If the start time string is not in valid ISO 8601 format
@@ -986,7 +969,10 @@ class ADFTrigger(AzureResourceBase):
             # Recreate the trigger with updated start time
             print(f"Recreating trigger {trigger_name} with new start time...")
             self.client.triggers.create_or_update(
-                self.resource_group_name, self.resource_name, trigger_name, trigger_obj
+                self.resource_group_name,
+                self.resource_name,
+                trigger_name,
+                trigger_obj,
             )
 
             # Restore original state if it was running
@@ -1005,11 +991,14 @@ class ADFTrigger(AzureResourceBase):
 
 class ADFPipeline(AzureResourceBase):
     def __init__(
-        self, resource_group_name: str, resource_name: str, subscription_id: str = None
+        self,
+        resource_group_name: str,
+        resource_name: str,
+        subscription_id: str = None,
     ):
         """
         Initialize Azure Data Factory Pipeline operations.
-        
+
         Args:
             resource_group_name: Name of the resource group
             resource_name: Name of the ADF factory
@@ -1026,11 +1015,11 @@ class ADFPipeline(AzureResourceBase):
     def create_run(self, pipeline_name: str, parameters: Dict = None) -> str:
         """
         Create a pipeline run and store the run ID as instance variable.
-        
+
         Args:
             pipeline_name: Name of the pipeline to run
             parameters: Optional dictionary of parameters to pass to the pipeline
-            
+
         Returns:
             Pipeline run ID as a string
         """
@@ -1041,7 +1030,7 @@ class ADFPipeline(AzureResourceBase):
             pipeline_parameters = parameters or {}
 
             # Create pipeline run
-            run_response = self.client.pipeline_runs.create_run(
+            run_response = self.client.pipelines.create_run(
                 resource_group_name=self.resource_group_name,
                 factory_name=self.resource_name,
                 pipeline_name=pipeline_name,
@@ -1049,7 +1038,6 @@ class ADFPipeline(AzureResourceBase):
             )
 
             self.run_id = run_response.run_id
-            print(f"Pipeline {pipeline_name} started with run ID: {self.run_id}")
             return self.run_id
 
         except Exception as e:
@@ -1059,7 +1047,7 @@ class ADFPipeline(AzureResourceBase):
     def check_status(self) -> Dict:
         """
         Check the status of the current pipeline run.
-        
+
         Returns:
             Dictionary containing pipeline run details including status
         """
@@ -1081,10 +1069,10 @@ class ADFPipeline(AzureResourceBase):
     def fetch_activity(self, activity_name: str = None) -> Union[Dict, List[Dict]]:
         """
         Fetch activity results after pipeline run is successful.
-        
+
         Args:
             activity_name: Optional specific activity name. If None, returns all activities.
-            
+
         Returns:
             Dictionary for specific activity or List of dictionaries for all activities
         """
@@ -1123,34 +1111,30 @@ class ADFPipeline(AzureResourceBase):
 
             # Find specific activity
             for activity in activities_list:
-                if activity.get("activityName") == activity_name:
+                if activity.get("activity_name") == activity_name:
                     print(
                         f"Found activity {activity_name} with status: {activity.get('status')}"
                     )
                     return activity
-
-            # Activity not found
-            available_activities = [act.get("activityName") for act in activities_list]
-            raise ValueError(
-                f"Activity '{activity_name}' not found. "
-                f"Available activities: {available_activities}"
-            )
 
         except Exception as e:
             print(f"Error fetching activity results: {str(e)}")
             raise
 
     def run_and_fetch(
-        self, pipeline_name: str, activity_name: str = None, parameters: Dict = None
-    ) -> Union[Dict, List[Dict]]:
+        self,
+        pipeline_name: str,
+        activity_name: str = None,
+        parameters: Dict = None,
+    ):
         """
         Wrapper to run pipeline and fetch activity results.
-        
+
         Args:
             pipeline_name: Name of the pipeline to run
             activity_name: Optional specific activity name. If None, returns all activities.
             parameters: Optional dictionary of parameters to pass to the pipeline
-            
+
         Returns:
             Dictionary for specific activity or List of dictionaries for all activities
         """
@@ -1168,11 +1152,11 @@ class ADFPipeline(AzureResourceBase):
                 if status in ["Succeeded", "Failed", "Cancelled"]:
                     break
 
-                time.sleep(30)  # Wait 30 seconds before checking again
+                time.sleep(10)  # Wait 10 seconds before checking again
 
             # Fetch activity results
             if status == "Succeeded":
-                return self.fetch_activity(activity_name)
+                return self.fetch_activity(activity_name)["output"]["resultSets"]
             else:
                 raise Exception(f"Pipeline failed with status: {status}")
 
