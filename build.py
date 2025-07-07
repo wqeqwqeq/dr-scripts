@@ -230,6 +230,22 @@ def generate_json(
                 }
                 for d in ordered_domains
             ]
+            
+            json_data["StgSync"] = [
+                {
+                    "from": {
+                        "resourceGroup": rg_map[d][environment.lower()],
+                        "stg": storage_map[d][environment.lower()]
+                    },
+                    "to": {
+                        "resourceGroup": rg_map[d]["DR"],
+                        "stg": storage_map[d]["DR"]
+                    }
+                }
+                for d in ordered_domains
+            ]
+            
+
     else:
         if domain == "Retail":
             raise ValueError("Retail domain can only be used in 'All' mode for ADF operations")
@@ -296,6 +312,16 @@ def generate_json(
                 "to": {
                     "resourceGroup": rg_map[domain]["DR"],
                     "kv": kv_map[domain]["DR"]
+                }
+            }
+            json_data["StgSync"] = {
+                "from": {
+                    "resourceGroup": rg_map[domain][environment.lower()],
+                    "stg": storage_map[domain][environment.lower()]
+                },
+                "to": {
+                    "resourceGroup": rg_map[domain]["DR"],
+                    "stg": storage_map[domain]["DR"]
                 }
             }
 

@@ -10,65 +10,33 @@ from typing import List, Dict, Union, Literal
 from subprocess import PIPE, run
 
 
-class AzureResourceBase:
+class AzureAuthentication:
+    """
+    Shared authentication class for Azure resources.
+    Manages credentials and tokens that can be shared across multiple resource instances.
+    """
+    
+    def __init__(self, subscription_id: str = None):
+        """
+        Initialize Azure authentication.
+        
+        Args:
+            subscription_id: Azure subscription ID. If not provided, will be retrieved from Azure CLI
+        """
+        self.credential = DefaultAzureCredential()
+        self.token = None
+        self.token_expiry = None
+        self.subscription_id = subscription_id or self.get_subscription_id()
+    
     def get_subscription_id(self):
         """Get the current subscription ID using Azure CLI"""
         cmd = "az account show --query id --output tsv"
         return self.run_cmd(cmd).stdout.strip()
-
-    def __init__(
-        self,
-        resource_group_name: str,
-        resource_name: str,
-        resource_type: Literal["adf", "batch", "keyvault", "locks"],
-        subscription_id: str = None,
-    ):
+    
+    def get_token(self):
         """
-        Base class for Azure resource operations.
-
-        Args:
-            resource_group_name: Name of the resource group
-            resource_name: Name of the resource (ADF factory, Batch account, or Key Vault)
-            resource_type: Type of resource ('adf', 'batch', or 'keyvault')
-            subscription_id: Azure subscription ID. If not provided, will be retrieved from Azure CLI
-        """
-        self.resource_group_name = resource_group_name
-        self.resource_name = resource_name
-        self.resource_type = resource_type.lower()
-        self.subscription_id = subscription_id or self.get_subscription_id()
-        self.credential = DefaultAzureCredential()
-        self.token = None
-        self.token_expiry = None
-
-        # Initialize appropriate client based on resource type
-        if self.resource_type == "adf":
-            self.client = DataFactoryManagementClient(
-                credential=self.credential,
-                subscription_id=self.subscription_id,
-            )
-        elif self.resource_type == "batch":
-            self.client = BatchManagementClient(
-                credential=self.credential,
-                subscription_id=self.subscription_id,
-            )
-        elif self.resource_type == "keyvault":
-            self.secret_client = SecretClient(
-                vault_url=f"https://{resource_name}.vault.azure.net",
-                credential=self.credential,
-            )
-        elif self.resource_type == "locks":
-            self.lock_client = ManagementLockClient(
-                credential=self.credential,
-                subscription_id=self.subscription_id,
-            )
-        else:
-            raise ValueError(
-                f"Unsupported resource type: {resource_type}. Must be 'adf', 'batch', 'keyvault', or 'locks'"
-            )
-
-    def _get_token(self):
-        """
-        Get a new token if current one is expired or doesn't exist
+        Get a new token if current one is expired or doesn't exist.
+        Returns cached token if still valid.
         """
         now = datetime.now()
         if (
@@ -86,6 +54,78 @@ class AzureResourceBase:
                 token_response.expires_on
             ) - timedelta(minutes=5)
         return self.token
+    
+    @staticmethod
+    def run_cmd(msg):
+        """Run a shell command and return the result"""
+        return run(
+            args=msg, stdout=PIPE, stderr=PIPE, universal_newlines=True, shell=True,
+        )
+
+
+class AzureResourceBase:
+    def __init__(
+        self,
+        resource_group_name: str,
+        resource_name: str,
+        resource_type: Literal["adf", "batch", "keyvault", "locks"],
+        subscription_id: str = None,
+        auth: AzureAuthentication = None,
+    ):
+        """
+        Base class for Azure resource operations.
+
+        Args:
+            resource_group_name: Name of the resource group
+            resource_name: Name of the resource (ADF factory, Batch account, or Key Vault)
+            resource_type: Type of resource ('adf', 'batch', 'keyvault', or 'locks')
+            subscription_id: Azure subscription ID. If not provided, will be retrieved from Azure CLI
+            auth: Optional AzureAuthentication instance. If not provided, creates a new one
+        """
+        self.resource_group_name = resource_group_name
+        self.resource_name = resource_name
+        self.resource_type = resource_type.lower()
+        
+        # Use provided auth instance or create a new one
+        if auth is not None:
+            self.auth = auth
+            self.subscription_id = auth.subscription_id
+        else:
+            self.auth = AzureAuthentication(subscription_id)
+            self.subscription_id = self.auth.subscription_id
+        
+        # For backward compatibility, expose credential and token methods
+        self.credential = self.auth.credential
+        
+        # Initialize appropriate client based on resource type
+        if self.resource_type == "adf":
+            self.client = DataFactoryManagementClient(
+                credential=self.credential, subscription_id=self.subscription_id,
+            )
+        elif self.resource_type == "batch":
+            self.client = BatchManagementClient(
+                credential=self.credential, subscription_id=self.subscription_id,
+            )
+        elif self.resource_type == "keyvault":
+            self.secret_client = SecretClient(
+                vault_url=f"https://{resource_name}.vault.azure.net",
+                credential=self.credential,
+            )
+        elif self.resource_type == "locks":
+            self.lock_client = ManagementLockClient(
+                credential=self.credential, subscription_id=self.subscription_id,
+            )
+        else:
+            raise ValueError(
+                f"Unsupported resource type: {resource_type}. Must be 'adf', 'batch', 'keyvault', or 'locks'"
+            )
+
+    def _get_token(self):
+        """
+        Get a token using the shared authentication instance.
+        This method is kept for backward compatibility.
+        """
+        return self.auth.get_token()
 
     def get_resource_details(self):
         """
@@ -109,13 +149,7 @@ class AzureResourceBase:
     @staticmethod
     def run_cmd(msg):
         """Run a shell command and return the result"""
-        return run(
-            args=msg,
-            stdout=PIPE,
-            stderr=PIPE,
-            universal_newlines=True,
-            shell=True,
-        )
+        return AzureAuthentication.run_cmd(msg)
 
 
 class ADFLinkedServices(AzureResourceBase):
@@ -221,9 +255,7 @@ class ADFLinkedServices(AzureResourceBase):
                     "connectionString"
                 ]
                 new_connection_string = re.sub(
-                    f"(?<=://){re.escape(old_fqdn)}(?=\.)",
-                    new_fqdn,
-                    connection_string,
+                    f"(?<=://){re.escape(old_fqdn)}(?=\.)", new_fqdn, connection_string,
                 )
                 # Check if the regex found a match, no replacement happened
                 if new_connection_string == connection_string:
@@ -323,9 +355,7 @@ class ADFLinkedServices(AzureResourceBase):
 
 class ADFManagedPrivateEndpoint(AzureResourceBase):
     def get_managed_private_endpoint(
-        self,
-        managed_private_endpoint_name: str,
-        managed_vnet_name: str = "default",
+        self, managed_private_endpoint_name: str, managed_vnet_name: str = "default",
     ) -> Dict:
         """
         Get details of a managed private endpoint in Azure Data Factory.
@@ -491,6 +521,7 @@ class AzureBatchPool(AzureResourceBase):
         resource_name: str,
         pool_name: str,
         subscription_id: str = None,
+        auth: AzureAuthentication = None,
     ):
         """
         Initialize Azure Batch Pool operations.
@@ -500,12 +531,14 @@ class AzureBatchPool(AzureResourceBase):
             resource_name: Name of the batch account
             pool_name: Name of the pool
             subscription_id: Optional subscription ID
+            auth: Optional AzureAuthentication instance. If not provided, creates a new one
         """
         super().__init__(
             resource_group_name=resource_group_name,
             resource_name=resource_name,
             resource_type="batch",
             subscription_id=subscription_id,
+            auth=auth,
         )
         self.pool_name = pool_name
 
@@ -648,19 +681,26 @@ class AzureKeyVault(AzureResourceBase):
 
 
 class AzureResourceLock(AzureResourceBase):
-    def __init__(self, resource_group_name: str, subscription_id: str = None):
+    def __init__(
+        self, 
+        resource_group_name: str, 
+        subscription_id: str = None,
+        auth: AzureAuthentication = None,
+    ):
         """
         Initialize Azure Resource Locker operations.
 
         Args:
             resource_group_name: Name of the resource group
             subscription_id: Azure subscription ID. If not provided, will be retrieved from Azure CLI
+            auth: Optional AzureAuthentication instance. If not provided, creates a new one
         """
         super().__init__(
             resource_group_name=resource_group_name,
             resource_name=None,  # Not needed for lock operations
             resource_type="locks",  # Custom type for lock operations
             subscription_id=subscription_id,
+            auth=auth,
         )
         self.lock_client = ManagementLockClient(
             credential=self.credential, subscription_id=self.subscription_id
@@ -969,10 +1009,7 @@ class ADFTrigger(AzureResourceBase):
             # Recreate the trigger with updated start time
             print(f"Recreating trigger {trigger_name} with new start time...")
             self.client.triggers.create_or_update(
-                self.resource_group_name,
-                self.resource_name,
-                trigger_name,
-                trigger_obj,
+                self.resource_group_name, self.resource_name, trigger_name, trigger_obj,
             )
 
             # Restore original state if it was running
@@ -991,10 +1028,11 @@ class ADFTrigger(AzureResourceBase):
 
 class ADFPipeline(AzureResourceBase):
     def __init__(
-        self,
-        resource_group_name: str,
-        resource_name: str,
+        self, 
+        resource_group_name: str, 
+        resource_name: str, 
         subscription_id: str = None,
+        auth: AzureAuthentication = None,
     ):
         """
         Initialize Azure Data Factory Pipeline operations.
@@ -1003,12 +1041,14 @@ class ADFPipeline(AzureResourceBase):
             resource_group_name: Name of the resource group
             resource_name: Name of the ADF factory
             subscription_id: Azure subscription ID. If not provided, will be retrieved from Azure CLI
+            auth: Optional AzureAuthentication instance. If not provided, creates a new one
         """
         super().__init__(
             resource_group_name=resource_group_name,
             resource_name=resource_name,
             resource_type="adf",
             subscription_id=subscription_id,
+            auth=auth,
         )
         self.run_id = None
 
@@ -1122,10 +1162,7 @@ class ADFPipeline(AzureResourceBase):
             raise
 
     def run_and_fetch(
-        self,
-        pipeline_name: str,
-        activity_name: str = None,
-        parameters: Dict = None,
+        self, pipeline_name: str, activity_name: str = None, parameters: Dict = None,
     ):
         """
         Wrapper to run pipeline and fetch activity results.
