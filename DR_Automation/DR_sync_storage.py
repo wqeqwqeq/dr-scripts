@@ -1,170 +1,117 @@
 #!/usr/bin/env python3
 import json
 import argparse
-from typing import Dict
+from typing import List, Dict
 import sys
 import os
-
-# Add the parent directory to the path to import azure_tools
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from azure_tools.storage import AzureStorageCopy
 
-
-def get_stg_sync_config(file_path: str = "build.json") -> Dict:
+def get_stg_sync_configs(file_path: str = "build.json") -> tuple[List[Dict], Dict]:
     """
-    Read build.json file and extract StgSync configuration.
+    Read build.json file and extract storage sync configurations and config data.
     
     Args:
         file_path: Path to the build.json file
         
     Returns:
-        StgSync configuration dictionary
+        Tuple containing:
+        - List of storage sync configurations
+        - Config data dictionary
     """
     try:
         with open(file_path, 'r') as f:
             data = json.load(f)
             
-        if "StgSync" not in data:
-            raise ValueError("StgSync configuration not found in build.json")
+        stg_sync = data.get("StgSync", [])
+        if not isinstance(stg_sync, list):
+            # Handle single domain case
+            stg_sync = [stg_sync]
             
-        stg_sync_config = data["StgSync"]
-        
-        # Validate required fields
-        required_fields = ["from", "to"]
-        for field in required_fields:
-            if field not in stg_sync_config:
-                raise ValueError(f"Required field '{field}' not found in StgSync configuration")
-                
-        for direction in ["from", "to"]:
-            if "stg" not in stg_sync_config[direction]:
-                raise ValueError(f"Storage account name 'stg' not found in StgSync.{direction}")
-                
-        return stg_sync_config
-        
+        return stg_sync, data.get("config", {})
     except Exception as e:
         print(f"Error reading or processing build.json: {str(e)}")
         raise
 
-
-def run_storage_sync(config_file: str, containers: list = None) -> None:
+def sync_storage_accounts(config_file: str, dry_run: bool = True) -> None:
     """
-    Synchronize storage containers between source and target storage accounts based on configuration.
+    Sync containers between storage accounts based on configuration.
     
     Args:
-        config_file (str): Path to the build.json configuration file
-        containers (list): List of container names to sync. Defaults to ['batch-pool', 'scriptfiles']
+        config_file: Path to the build.json configuration file
+        dry_run: If True, only show what would be changed without making changes
     """
-    # Default containers to sync
-    if containers is None:
-        containers = ['batch-pool', 'scriptfiles']
+    # Get storage sync configurations and mode
+    stg_configs, config = get_stg_sync_configs(config_file)
     
-    # Get the StgSync configuration
-    stg_sync_config = get_stg_sync_config(config_file)
+    if config.get("mode") == "failback":
+        print("Skip syncing in failback mode")
+        return
     
-    # Extract source and target storage account names
-    source_stg_name = stg_sync_config['from']['stg']
-    target_stg_name = stg_sync_config['to']['stg']
-    source_rg = stg_sync_config['from']['resourceGroup']
-    target_rg = stg_sync_config['to']['resourceGroup']
+    # Define the containers to sync
+    containers_to_sync = ["batch-pool", "scriptfiles"]
     
-    print(f"Starting storage synchronization")
-    print(f"Source Storage: {source_stg_name} (Resource Group: {source_rg})")
-    print(f"Target Storage: {target_stg_name} (Resource Group: {target_rg})")
-    print(f"Containers to sync: {', '.join(containers)}")
-    print("=" * 80)
-    
-    # Track results for each container
-    sync_results = {}
-    
-    try:
-        # Initialize AzureStorageCopy
-        print(f"Initializing storage copy operation...")
-        storage_copy = AzureStorageCopy(
-            sourceStgName=source_stg_name,
-            targetStgName=target_stg_name
-        )
-        print(f"✓ Storage copy client initialized successfully")
-        
-        # Process each container
-        for container_name in containers:
-            print(f"\n--- Processing container: {container_name} ---")
+    for stg_config in stg_configs:
+        try:
+            # Initialize storage copy client
+            storage_copy = AzureStorageCopy(
+                sourceStgName=stg_config["from"]["stg"],
+                targetStgName=stg_config["to"]["stg"]
+            )
             
-            try:
-                print(f"Copying container '{container_name}' from {source_stg_name} to {target_stg_name}")
+            print(f"\nProcessing storage sync from {stg_config['from']['stg']} to {stg_config['to']['stg']}")
+            
+            # Copy each container
+            for container_name in containers_to_sync:
+                print(f"\nProcessing container: {container_name}")
                 
-                # Copy the container
-                storage_copy.copy_container(
-                    source_container=container_name,
-                    target_container=container_name,
-                    overwrite=True
-                )
-                
-                # Record success
-                sync_results[container_name] = {
-                    'status': 'success',
-                    'message': f'Container copied successfully'
-                }
-                
-                print(f"✓ Container '{container_name}' copied successfully")
-                
-            except Exception as e:
-                print(f"✗ Error copying container '{container_name}': {str(e)}")
-                sync_results[container_name] = {
-                    'status': 'error',
-                    'message': str(e)
-                }
-                
-    except Exception as e:
-        print(f"✗ Error initializing storage copy operation: {str(e)}")
-        # Mark all containers as failed if initialization fails
-        for container_name in containers:
-            sync_results[container_name] = {
-                'status': 'error',
-                'message': f'Storage copy initialization failed: {str(e)}'
-            }
-    
-    # Print overall summary
-    print("\n" + "=" * 80)
-    print("STORAGE SYNCHRONIZATION SUMMARY")
-    print("=" * 80)
-    
-    successful_containers = []
-    failed_containers = []
-    
-    for container_name, result in sync_results.items():
-        if result['status'] == 'success':
-            successful_containers.append(container_name)
-            print(f"✓ {container_name}: SUCCESS")
-        else:
-            failed_containers.append(container_name)
-            print(f"✗ {container_name}: FAILED - {result['message']}")
-    
-    print(f"\nTotal containers processed: {len(sync_results)}")
-    print(f"Successful: {len(successful_containers)}")
-    print(f"Failed: {len(failed_containers)}")
-    
-    if failed_containers:
-        print(f"\nFailed containers: {', '.join(failed_containers)}")
-        
-    if successful_containers:
-        print(f"Successfully synced containers: {', '.join(successful_containers)}")
-
+                try:
+                    # Check if source container exists and has blobs
+                    try:
+                        source_blobs = storage_copy.sourceSTG.list_blobs(container_name)
+                        if not source_blobs:
+                            print(f"No blobs found in source container {container_name}")
+                            continue
+                    except Exception as e:
+                        print(f"Source container {container_name} not found or inaccessible: {str(e)}")
+                        continue
+                    
+                    if dry_run:
+                        print(f"What if: Would copy container {container_name} from {stg_config['from']['stg']} to {stg_config['to']['stg']}")
+                        print(f"What if: Would copy {len(source_blobs)} blobs")
+                        continue
+                    
+                    # Copy container to target storage account
+                    storage_copy.copy_container(
+                        source_container=container_name,
+                        target_container=container_name,
+                        overwrite=True
+                    )
+                    
+                except Exception as e:
+                    print(f"Error processing container {container_name}: {str(e)}")
+                    continue
+                    
+        except Exception as e:
+            print(f"Error processing storage accounts: {str(e)}")
+            continue
 
 def main():
-    parser = argparse.ArgumentParser(description='Synchronize storage containers between source and target storage accounts')
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Sync containers between Azure Storage Accounts')
     parser.add_argument('--config', default='build.json', help='Path to build.json configuration file')
-    parser.add_argument('--containers', nargs='+', default=['batch-pool', 'scriptfiles'], 
-                       help='List of container names to sync (default: batch-pool scriptfiles)')
-
+    parser.add_argument('--dry-run', type=str, choices=['True', 'False'], default='True',
+                      help='Set to True for dry run (default) or False to execute changes')
     args = parser.parse_args()
 
-    # Run storage synchronization
-    run_storage_sync(
-        config_file=args.config,
-        containers=args.containers
-    )
+    print("Configuration:")
+    print(f"Config file: {args.config}")
+    print(f"Mode: {'Execute' if args.dry_run == 'False' else 'Dry Run'}\n")
 
+    sync_storage_accounts(
+        config_file=args.config,
+        dry_run=args.dry_run == 'True'
+    )
 
 if __name__ == "__main__":
     main() 
